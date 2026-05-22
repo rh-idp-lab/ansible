@@ -1,0 +1,6 @@
+---
+- name: Deploy IDP Lab from Zero — OpenShift GitOps + GitLab
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: idp_lab_from0

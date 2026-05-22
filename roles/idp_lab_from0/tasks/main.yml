@@ -1,0 +1,9 @@
+---
+- name: Run pre-workload tasks
+  ansible.builtin.include_tasks: pre_workload.yml
+
+- name: Run workload tasks
+  ansible.builtin.include_tasks: workload.yml
+
+- name: Run post-workload tasks
+  ansible.builtin.include_tasks: post_workload.yml

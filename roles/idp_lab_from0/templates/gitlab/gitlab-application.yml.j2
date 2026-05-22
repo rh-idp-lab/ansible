@@ -1,0 +1,130 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ idp_lab_from0_gitlab_gitops_name }}
+  namespace: {{ idp_lab_from0_gitlab_gitops_namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io/foreground
+spec:
+  destination:
+    namespace: {{ idp_lab_from0_gitlab_namespace }}
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    helm:
+      values: |
+        gitlab:
+
+          templates:
+            - group: rhdh
+              user1: {{ idp_lab_from0_gitlab_user1 }}
+              user2: {{ idp_lab_from0_gitlab_user2 }}
+              user3: {{ idp_lab_from0_gitlab_user3 }}
+              project: import-existing-app-template
+              branch: main
+              templates:
+                - template.yaml
+            - group: rhdh
+              user1: {{ idp_lab_from0_gitlab_user1 }}
+              user2: {{ idp_lab_from0_gitlab_user2 }}
+              user3: {{ idp_lab_from0_gitlab_user3 }}
+              project: import-existing-api-template
+              branch: main
+              templates:
+                - template.yaml
+            - group: global
+              user1: {{ idp_lab_from0_gitlab_user1 }}
+              user2: {{ idp_lab_from0_gitlab_user2 }}
+              user3: {{ idp_lab_from0_gitlab_user3 }}
+              project: global-techdocs
+              branch: main
+              templates:
+                - catalog-info.yaml
+                - mkdocs.yaml
+            - group: rhdh
+              user1: {{ idp_lab_from0_gitlab_user1 }}
+              user2: {{ idp_lab_from0_gitlab_user2 }}
+              user3: {{ idp_lab_from0_gitlab_user3 }}
+              project: template-developer-self-service
+              branch: main
+              templates:
+                - namespace/template-small.yaml
+                - namespace/template-medium.yaml
+                - namespace/template-large.yaml
+
+          users:
+            users:
+              - id: {{ idp_lab_from0_gitlab_user1 }}
+              - id: {{ idp_lab_from0_gitlab_user2 }}
+              - id: {{ idp_lab_from0_gitlab_user3 }}
+            password: {{ idp_lab_from0_gitlab_users_password }}
+
+          groups:
+            - name: devteam
+              repo: []
+              users:
+                - id: {{ idp_lab_from0_gitlab_user1 }}
+                - id: {{ idp_lab_from0_gitlab_user2 }}
+
+            - name: global
+              repo:
+                - name: global-techdocs
+                  url: https://github.com/rh-opencodequest-origins/global-techdocs.git
+              users:
+                - id: {{ idp_lab_from0_gitlab_user1 }}
+                - id: {{ idp_lab_from0_gitlab_user2 }}
+                - id: {{ idp_lab_from0_gitlab_user3 }}
+
+            - name: rhdh
+              repo:
+                - name: developer-hub-config
+                  url: https://github.com/rh-opencodequest-origins/developer-hub-config.git
+                - name: import-existing-app-template
+                  url: https://github.com/rh-opencodequest-origins/import-existing-app-template.git
+                - name: import-existing-api-template
+                  url: https://github.com/rh-opencodequest-origins/import-api-template.git
+                - name: rhdh-entities
+                  url: https://github.com/rh-opencodequest-origins/pe-workshop-entities.git
+                - name: template-developer-self-service
+                  url: https://github.com/rh-opencodequest-origins/rhdh-template-developer-self-service.git
+              users:
+                - id: {{ idp_lab_from0_gitlab_user1 }}
+                - id: {{ idp_lab_from0_gitlab_user2 }}
+                - id: {{ idp_lab_from0_gitlab_user3 }}
+              project:
+                - name: rhdh-issues
+                  labels:
+                    - name: approved
+                      color: green
+                    - name: denied
+                      color: red
+
+      parameters:
+        - name: gitlab.smtp.host
+          value: "{{ idp_lab_from0_gitlab_config_smtp_host }}"
+        - name: gitlab.ssh.host
+          value: "{{ idp_lab_from0_gitlab_config_ssh_host }}"
+        - name: gitlab.rootPassword
+          value: "{{ idp_lab_from0_gitlab_config_root_password }}"
+        - name: gitlab.users.password
+          value: "{{ idp_lab_from0_gitlab_users_password }}"
+        - name: gitlab.host
+          value: {{ idp_lab_from0_gitlab_config_host }}
+        - name: cluster.subdomain
+          value: {{ r_openshift_subdomain }}
+
+    path: {{ idp_lab_from0_gitlab_gitops_repo_path }}
+    repoURL: {{ idp_lab_from0_gitlab_gitops_repo }}
+    targetRevision: {{ idp_lab_from0_gitlab_gitops_repo_tag }}
+  syncPolicy:
+    automated: {}
+    retry:
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m0s
+      limit: 2
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+      - ServerSideApply=true

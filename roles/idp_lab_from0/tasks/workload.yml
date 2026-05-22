@@ -1,0 +1,17 @@
+---
+- name: Install OpenShift GitOps
+  ansible.builtin.include_tasks: openshift_gitops.yml
+  tags: install_gitops
+
+- name: Install GitLab
+  ansible.builtin.include_tasks: gitlab.yml
+  tags: install_gitlab
+
+- name: Install Vault
+  ansible.builtin.include_tasks: vault.yml
+  tags: install_vault
+
+- name: Print common password
+  ansible.builtin.debug:
+    msg: "common_password: {{ common_password }}"
+  when: not silent | bool
