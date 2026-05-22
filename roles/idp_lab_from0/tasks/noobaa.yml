@@ -1,0 +1,15 @@
+---
+- name: Create NooBaa ArgoCD application
+  when: idp_lab_from0_noobaa_install | bool
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'noobaa/noobaa-application.yaml.j2') | from_yaml }}"
+  retries: 10
+  delay: 30
+  ignore_errors: true
+  register: noobaa_result
+  until: noobaa_result is not failed
+
+- name: Print noobaa_result
+  ansible.builtin.debug:
+    var: noobaa_result

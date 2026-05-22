@@ -8,7 +8,7 @@ echo
 
 echo "Cleaning ArgoCD applications (openshift-gitops)"
 oc get Applications -n openshift-gitops \
-  | grep -e gitlab -e vault -e rhdh-gitops \
+  | grep -e gitlab -e noobaa -e vault -e rhdh-gitops \
   | awk '{print $1}' \
   | xargs -r oc -n openshift-gitops delete Applications
 
@@ -16,7 +16,7 @@ echo
 
 echo "Cleaning namespaces"
 oc get project \
-  | grep -e gitlab -e vault -e rhdh-gitops \
+  | grep -e gitlab -e openshift-storage -e vault -e rhdh-gitops \
   | awk '{print $1}' \
   | xargs -r oc delete project
 
@@ -39,12 +39,12 @@ oc get secret gitlab-oauth-config -n openshift-devspaces >/dev/null 2>&1 \
 
 echo
 
-echo "Cleaning lab users"
-oc get users -o json 2>/dev/null \
-  | jq -r '.items.[].metadata.name' \
-  | grep -v admin \
-  | while read user; do
-      oc delete user "$user"
-    done
+# echo "Cleaning lab users"
+# oc get users -o json 2>/dev/null \
+#   | jq -r '.items.[].metadata.name' \
+#   | grep -v admin \
+#   | while read user; do
+#       oc delete user "$user"
+#     done
 
 echo "Done."

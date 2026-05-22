@@ -193,6 +193,20 @@ idp_lab_from0_gitlab_oauth_apps:
     scopes: "api read_user read_repository write_repository openid profile email"
 
 # ------------------------------------------------
+# NooBaa
+# ------------------------------------------------
+
+# Set to false when deploying on a cluster that already has ODF installed
+idp_lab_from0_noobaa_install: true
+idp_lab_from0_noobaa_application_namespace: openshift-gitops
+idp_lab_from0_noobaa_application_name: noobaa
+idp_lab_from0_noobaa_namespace: openshift-storage
+idp_lab_from0_noobaa_gitops_repo: https://github.com/rh-opencodequest-origins/helm.git
+idp_lab_from0_noobaa_gitops_repo_tag: opencodequest
+idp_lab_from0_noobaa_gitops_repo_path: noobaa
+idp_lab_from0_noobaa_name: noobaa
+
+# ------------------------------------------------
 # Vault
 # ------------------------------------------------
 

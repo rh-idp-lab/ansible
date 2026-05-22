@@ -27,6 +27,7 @@ help:
 	@echo "  make deploy        Run the full idp_lab_from0 role (GitOps + GitLab + Vault)"
 	@echo "  make gitops        Deploy OpenShift GitOps only"
 	@echo "  make gitlab        Deploy GitLab only"
+	@echo "  make noobaa        Deploy NooBaa only"
 	@echo "  make vault         Deploy Vault only"
 	@echo "  make clean         Delete all deployed resources from the cluster"
 	@echo ""
@@ -46,6 +47,9 @@ gitops:
 
 gitlab:
 	ansible-playbook $(PLAYBOOK) --tags install_gitlab $(ENV_VARS) $(EXTRA_VARS)
+
+noobaa:
+	ansible-playbook $(PLAYBOOK) --tags install_noobaa $(ENV_VARS) $(EXTRA_VARS)
 
 vault:
 	ansible-playbook $(PLAYBOOK) --tags install_vault $(ENV_VARS) $(EXTRA_VARS)

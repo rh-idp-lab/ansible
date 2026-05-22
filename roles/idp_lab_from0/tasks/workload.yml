@@ -7,6 +7,10 @@
   ansible.builtin.include_tasks: gitlab.yml
   tags: install_gitlab
 
+- name: Install NooBaa
+  ansible.builtin.include_tasks: noobaa.yml
+  tags: install_noobaa
+
 - name: Install Vault
   ansible.builtin.include_tasks: vault.yml
   tags: install_vault
