@@ -5,6 +5,21 @@ silent: false
 guid: idp
 
 # ------------------------------------------------
+# Showroom
+# ------------------------------------------------
+
+idp_lab_from0_showroom_application_name: showroom
+idp_lab_from0_showroom_application_namespace: openshift-gitops
+idp_lab_from0_showroom_namespace: showroom
+idp_lab_from0_showroom_chart_version: "2.1.7"
+idp_lab_from0_showroom_content_repo: https://github.com/rh-idp-lab/showroom.git
+idp_lab_from0_showroom_content_ref: main
+idp_lab_from0_showroom_ssh_user: lab-user
+idp_lab_from0_showroom_hooks_repo: https://github.com/rh-idp-lab/ansible.git
+idp_lab_from0_showroom_hooks_ref: main
+idp_lab_from0_showroom_hooks_path: argocd/hooks/showroom-restart
+
+# ------------------------------------------------
 # OpenShift GitOps
 # ------------------------------------------------
 
@@ -159,11 +174,26 @@ idp_lab_from0_openshift_gitops_rbac_policy: |
       g, cluster-admins, role:admin
       g, system:authenticated, role:readonly
 
+# Users to add to the cluster-admins OpenShift group so they get ArgoCD admin via SSO
+idp_lab_from0_openshift_gitops_cluster_admins_group_users:
+  - admin
+  - opentlc-mgr
+
+# ------------------------------------------------
+# Keycloak
+# ------------------------------------------------
+
+idp_lab_from0_keycloak_namespace: keycloak
+
 # ------------------------------------------------
 # GitLab
 # ------------------------------------------------
 
 idp_lab_from0_gitlab_namespace: gitlab
+
+# Groups whose projects are deleted and re-seeded by make gitlab-reset
+idp_lab_from0_gitlab_reset_groups:
+  - idp-lab
 
 idp_lab_from0_gitlab_gitops_repo: https://github.com/rh-idp-lab/helm.git
 idp_lab_from0_gitlab_gitops_repo_path: gitlab
@@ -201,8 +231,8 @@ idp_lab_from0_noobaa_install: true
 idp_lab_from0_noobaa_application_namespace: openshift-gitops
 idp_lab_from0_noobaa_application_name: noobaa
 idp_lab_from0_noobaa_namespace: openshift-storage
-idp_lab_from0_noobaa_gitops_repo: https://github.com/rh-opencodequest-origins/helm.git
-idp_lab_from0_noobaa_gitops_repo_tag: opencodequest
+idp_lab_from0_noobaa_gitops_repo: https://github.com/rh-idp-lab/helm.git
+idp_lab_from0_noobaa_gitops_repo_tag: main
 idp_lab_from0_noobaa_gitops_repo_path: noobaa
 idp_lab_from0_noobaa_name: noobaa
 
@@ -213,8 +243,8 @@ idp_lab_from0_noobaa_name: noobaa
 idp_lab_from0_vault_application_namespace: openshift-gitops
 idp_lab_from0_vault_application_name: vault
 idp_lab_from0_vault_namespace: vault
-idp_lab_from0_vault_gitops_repo: https://github.com/rh-opencodequest-origins/helm.git
-idp_lab_from0_vault_gitops_repo_tag: opencodequest
+idp_lab_from0_vault_gitops_repo: https://github.com/rh-idp-lab/helm.git
+idp_lab_from0_vault_gitops_repo_tag: main
 idp_lab_from0_vault_gitops_repo_path: hashicorp-vault
 idp_lab_from0_vault_name: vault
 idp_lab_from0_vault_auth_namespace: default

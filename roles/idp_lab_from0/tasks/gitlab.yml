@@ -36,20 +36,5 @@
   ansible.builtin.set_fact:
     _idp_lab_from0_gitlab_root_token: "{{ r_root_token.resources[0].data.token | b64decode }}"
 
-- name: Get list of existing OAuth applications
-  uri:
-    url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/applications"
-    method: GET
-    headers:
-      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
-    return_content: yes
-    status_code: 200
-  register: get_apps_response
-  failed_when: false
-  changed_when: false
-
-- name: Process OAuth applications
-  ansible.builtin.include_tasks: create_oauth_app.yml
-  loop: "{{ idp_lab_from0_gitlab_oauth_apps }}"
-  loop_control:
-    loop_var: oauth_app
+# OAuth applications (e.g. Dev Spaces) are created manually by lab participants
+# as part of the workshop exercises — no automated creation here.

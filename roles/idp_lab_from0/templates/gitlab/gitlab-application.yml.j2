@@ -15,42 +15,7 @@ spec:
       values: |
         gitlab:
 
-          templates:
-            - group: rhdh
-              user1: {{ idp_lab_from0_gitlab_user1 }}
-              user2: {{ idp_lab_from0_gitlab_user2 }}
-              user3: {{ idp_lab_from0_gitlab_user3 }}
-              project: import-existing-app-template
-              branch: main
-              templates:
-                - template.yaml
-            - group: rhdh
-              user1: {{ idp_lab_from0_gitlab_user1 }}
-              user2: {{ idp_lab_from0_gitlab_user2 }}
-              user3: {{ idp_lab_from0_gitlab_user3 }}
-              project: import-existing-api-template
-              branch: main
-              templates:
-                - template.yaml
-            - group: global
-              user1: {{ idp_lab_from0_gitlab_user1 }}
-              user2: {{ idp_lab_from0_gitlab_user2 }}
-              user3: {{ idp_lab_from0_gitlab_user3 }}
-              project: global-techdocs
-              branch: main
-              templates:
-                - catalog-info.yaml
-                - mkdocs.yaml
-            - group: rhdh
-              user1: {{ idp_lab_from0_gitlab_user1 }}
-              user2: {{ idp_lab_from0_gitlab_user2 }}
-              user3: {{ idp_lab_from0_gitlab_user3 }}
-              project: template-developer-self-service
-              branch: main
-              templates:
-                - namespace/template-small.yaml
-                - namespace/template-medium.yaml
-                - namespace/template-large.yaml
+          templates: []
 
           users:
             users:
@@ -60,44 +25,14 @@ spec:
             password: {{ idp_lab_from0_gitlab_users_password }}
 
           groups:
-            - name: devteam
-              repo: []
-              users:
-                - id: {{ idp_lab_from0_gitlab_user1 }}
-                - id: {{ idp_lab_from0_gitlab_user2 }}
-
-            - name: global
+            - name: idp-lab
               repo:
-                - name: global-techdocs
-                  url: https://github.com/rh-opencodequest-origins/global-techdocs.git
+                - name: helm
+                  url: https://github.com/rh-idp-lab/helm.git
               users:
                 - id: {{ idp_lab_from0_gitlab_user1 }}
                 - id: {{ idp_lab_from0_gitlab_user2 }}
                 - id: {{ idp_lab_from0_gitlab_user3 }}
-
-            - name: rhdh
-              repo:
-                - name: developer-hub-config
-                  url: https://github.com/rh-opencodequest-origins/developer-hub-config.git
-                - name: import-existing-app-template
-                  url: https://github.com/rh-opencodequest-origins/import-existing-app-template.git
-                - name: import-existing-api-template
-                  url: https://github.com/rh-opencodequest-origins/import-api-template.git
-                - name: rhdh-entities
-                  url: https://github.com/rh-opencodequest-origins/pe-workshop-entities.git
-                - name: template-developer-self-service
-                  url: https://github.com/rh-opencodequest-origins/rhdh-template-developer-self-service.git
-              users:
-                - id: {{ idp_lab_from0_gitlab_user1 }}
-                - id: {{ idp_lab_from0_gitlab_user2 }}
-                - id: {{ idp_lab_from0_gitlab_user3 }}
-              project:
-                - name: rhdh-issues
-                  labels:
-                    - name: approved
-                      color: green
-                    - name: denied
-                      color: red
 
       parameters:
         - name: gitlab.smtp.host
@@ -127,4 +62,3 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true
-      - ServerSideApply=true

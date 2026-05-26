@@ -8,7 +8,7 @@ echo
 
 echo "Cleaning ArgoCD applications (openshift-gitops)"
 oc get Applications -n openshift-gitops \
-  | grep -e gitlab -e noobaa -e vault -e rhdh-gitops \
+  | grep -e gitlab -e vault -e rhdh-gitops \
   | awk '{print $1}' \
   | xargs -r oc -n openshift-gitops delete Applications
 
@@ -16,7 +16,7 @@ echo
 
 echo "Cleaning namespaces"
 oc get project \
-  | grep -e gitlab -e openshift-storage -e vault -e rhdh-gitops \
+  | grep -e gitlab -e vault -e rhdh-gitops \
   | awk '{print $1}' \
   | xargs -r oc delete project
 

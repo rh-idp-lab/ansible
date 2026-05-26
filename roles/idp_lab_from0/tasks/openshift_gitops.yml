@@ -107,6 +107,16 @@
   ansible.builtin.set_fact:
     openshift_gitops_admin_password: "{{ r_secret.resources[0]['data']['admin.password'] | string | b64decode }}"
 
+- name: Ensure cluster-admins OpenShift group exists
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: user.openshift.io/v1
+      kind: Group
+      metadata:
+        name: cluster-admins
+      users: "{{ idp_lab_from0_openshift_gitops_cluster_admins_group_users }}"
+
 - name: Print ArgoCD access information
   ansible.builtin.debug:
     msg:

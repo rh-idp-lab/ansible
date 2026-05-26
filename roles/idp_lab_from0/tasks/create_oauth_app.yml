@@ -1,12 +1,15 @@
 ---
+- name: Normalize existing OAuth apps list
+  ansible.builtin.set_fact:
+    _existing_oauth_apps: "{{ get_apps_response.json if get_apps_response.json | type_debug == 'list' else [] }}"
+
 - name: Check if OAuth app '{{ oauth_app.name }}' already exists
   ansible.builtin.set_fact:
     oauth_app_exists: >-
       {{
-        get_apps_response.json is defined and
-        (get_apps_response.json | selectattr('name', 'equalto', oauth_app.name)
-        | selectattr('redirect_uri', 'equalto', oauth_app.redirect_uri)
-        | list | length) > 0
+        _existing_oauth_apps
+        | json_query('[?name==`' + oauth_app.name + '` && redirect_uri==`' + oauth_app.redirect_uri + '`]')
+        | length > 0
       }}
 
 - name: Create OAuth application '{{ oauth_app.name }}' if not present
@@ -26,24 +29,30 @@
   when: not oauth_app_exists
   register: oauth_app_create_response
 
-- name: Store OAuth app details
-  ansible.builtin.set_fact:
-    _gitlab_oauth_apps: "{{ _gitlab_oauth_apps | default({}) | combine({oauth_app.name: app_details}) }}"
-  vars:
-    app_details:
-      application_id: "{{ oauth_app_create_response.json.application_id if not oauth_app_exists else existing_oauth_app.application_id }}"
-      secret: "{{ oauth_app_create_response.json.secret if not oauth_app_exists else existing_oauth_app.secret | default('SECRET_NOT_AVAILABLE') }}"
-      name: "{{ oauth_app.name }}"
-      redirect_uri: "{{ oauth_app.redirect_uri }}"
-      trusted: "{{ oauth_app.trusted | default(false) }}"
+- name: Store OAuth credentials for '{{ oauth_app.name }}' in a Kubernetes Secret
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: "gitlab-oauth-{{ oauth_app.name }}"
+        namespace: "{{ idp_lab_from0_gitlab_namespace }}"
+      stringData:
+        application_id: "{{ oauth_app_create_response.json.application_id | string }}"
+        secret: "{{ oauth_app_create_response.json.secret }}"
+  when:
+    - not oauth_app_exists
+    - oauth_app_create_response is defined
+    - oauth_app_create_response.json is defined
 
 - name: Show result for OAuth app '{{ oauth_app.name }}'
   ansible.builtin.debug:
     msg: >-
       {% if oauth_app_create_response is defined and oauth_app_create_response.json is defined %}
-        Created '{{ oauth_app.name }}' — App ID: {{ oauth_app_create_response.json.application_id }}, Secret: {{ oauth_app_create_response.json.secret }}
+        Created '{{ oauth_app.name }}' — App ID: {{ oauth_app_create_response.json.application_id }}, Secret stored in gitlab/gitlab-oauth-{{ oauth_app.name }}
       {% elif oauth_app_exists %}
-        OAuth app '{{ oauth_app.name }}' already exists. Skipping creation.
+        OAuth app '{{ oauth_app.name }}' already exists — skipping.
       {% else %}
         Unknown state for '{{ oauth_app.name }}'.
       {% endif %}

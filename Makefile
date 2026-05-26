@@ -18,17 +18,21 @@ ifdef COMMON_PASSWORD
   ENV_VARS += -e common_password=$(COMMON_PASSWORD)
 endif
 
-.PHONY: help deploy clean
+.PHONY: help deploy clean gitlab-reset showroom showroom-restart keycloak-config
 
 help:
 	@echo ""
 	@echo "IDP Lab — Ansible targets"
 	@echo ""
-	@echo "  make deploy        Run the full idp_lab_from0 role (GitOps + GitLab + Vault)"
+	@echo "  make deploy        Run the full idp_lab_from0 role (GitOps → NooBaa → Vault → GitLab → Showroom)"
 	@echo "  make gitops        Deploy OpenShift GitOps only"
-	@echo "  make gitlab        Deploy GitLab only"
 	@echo "  make noobaa        Deploy NooBaa only"
 	@echo "  make vault         Deploy Vault only"
+	@echo "  make gitlab        Deploy GitLab only (requires vault namespace to exist)"
+	@echo "  make keycloak-config  Create Keycloak admin user in master realm"
+	@echo "  make gitlab-reset  Delete and re-seed GitLab repos without reinstalling GitLab"
+	@echo "  make showroom      Deploy Showroom only"
+	@echo "  make showroom-restart  Force a rollout of the Showroom deployment (rebuild content)"
 	@echo "  make clean         Delete all deployed resources from the cluster"
 	@echo ""
 	@echo "Optional .env variables:"
@@ -53,6 +57,19 @@ noobaa:
 
 vault:
 	ansible-playbook $(PLAYBOOK) --tags install_vault $(ENV_VARS) $(EXTRA_VARS)
+
+showroom:
+	ansible-playbook $(PLAYBOOK) --tags install_showroom $(ENV_VARS) $(EXTRA_VARS)
+
+keycloak-config:
+	ansible-playbook $(PLAYBOOK) --tags keycloak_config $(ENV_VARS) $(EXTRA_VARS)
+
+gitlab-reset:
+	ansible-playbook $(PLAYBOOK) --tags gitlab_reset $(ENV_VARS) $(EXTRA_VARS)
+
+showroom-restart:
+	oc rollout restart deployment/showroom -n showroom
+	oc rollout status deployment/showroom -n showroom
 
 clean:
 	./clean.sh

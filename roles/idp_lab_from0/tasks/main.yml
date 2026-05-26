@@ -1,9 +1,11 @@
 ---
 - name: Run pre-workload tasks
-  ansible.builtin.include_tasks: pre_workload.yml
+  ansible.builtin.import_tasks: pre_workload.yml
+  tags: always
 
 - name: Run workload tasks
-  ansible.builtin.include_tasks: workload.yml
+  ansible.builtin.import_tasks: workload.yml
 
 - name: Run post-workload tasks
-  ansible.builtin.include_tasks: post_workload.yml
+  ansible.builtin.import_tasks: post_workload.yml
+  tags: always

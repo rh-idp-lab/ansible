@@ -1,19 +1,33 @@
 ---
 - name: Install OpenShift GitOps
-  ansible.builtin.include_tasks: openshift_gitops.yml
+  ansible.builtin.import_tasks: openshift_gitops.yml
   tags: install_gitops
 
-- name: Install GitLab
-  ansible.builtin.include_tasks: gitlab.yml
-  tags: install_gitlab
-
 - name: Install NooBaa
-  ansible.builtin.include_tasks: noobaa.yml
+  ansible.builtin.import_tasks: noobaa.yml
   tags: install_noobaa
 
 - name: Install Vault
-  ansible.builtin.include_tasks: vault.yml
+  ansible.builtin.import_tasks: vault.yml
   tags: install_vault
+
+- name: Install GitLab
+  ansible.builtin.import_tasks: gitlab.yml
+  tags: install_gitlab
+
+- name: Configure Keycloak master realm admin user
+  ansible.builtin.import_tasks: keycloak_config.yml
+  tags: keycloak_config
+
+- name: Install Showroom
+  ansible.builtin.import_tasks: showroom.yml
+  tags: install_showroom
+
+- name: Reset GitLab repositories
+  ansible.builtin.import_tasks: gitlab_reset.yml
+  tags:
+    - gitlab_reset
+    - never
 
 - name: Print common password
   ansible.builtin.debug:
