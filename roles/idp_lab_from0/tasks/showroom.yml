@@ -1,0 +1,47 @@
+---
+- name: Create Showroom ArgoCD application
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('template', 'showroom/showroom-application.yml.j2') | from_yaml }}"
+  retries: 10
+  delay: 30
+  register: showroom_result
+  until: showroom_result is not failed
+
+- name: Wait for Showroom Route to be available
+  kubernetes.core.k8s_info:
+    api_version: route.openshift.io/v1
+    kind: Route
+    namespace: "{{ idp_lab_from0_showroom_namespace }}"
+  register: r_showroom_route
+  retries: 30
+  delay: 10
+  until:
+    - r_showroom_route.resources is defined
+    - r_showroom_route.resources | length > 0
+    - r_showroom_route.resources[0].spec.host is defined
+
+# The showroom chart's default RBAC only gives 'edit' in the showroom namespace.
+# Grant cluster-admin so the in-browser terminal is pre-authenticated for the
+# entire lab without requiring any oc login step.
+- name: Grant Showroom ServiceAccount cluster-admin
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: rbac.authorization.k8s.io/v1
+      kind: ClusterRoleBinding
+      metadata:
+        name: "showroom-{{ idp_lab_from0_showroom_namespace }}-cluster-admin"
+      roleRef:
+        apiGroup: rbac.authorization.k8s.io
+        kind: ClusterRole
+        name: cluster-admin
+      subjects:
+        - kind: ServiceAccount
+          name: showroom
+          namespace: "{{ idp_lab_from0_showroom_namespace }}"
+
+- name: Print Showroom URL
+  ansible.builtin.debug:
+    msg: "Showroom URL: https://{{ r_showroom_route.resources[0].spec.host }}"
+  when: not silent | bool

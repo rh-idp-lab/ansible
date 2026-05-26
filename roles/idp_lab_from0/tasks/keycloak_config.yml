@@ -1,0 +1,225 @@
+---
+# Keycloak is pre-installed by cluster provisioning.
+# This task creates an 'admin' user in the master realm with common_password
+# via the Keycloak Admin REST API (called from Ansible using the uri module).
+
+- name: Get Keycloak initial admin credentials
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: keycloak-initial-admin
+    namespace: "{{ idp_lab_from0_keycloak_namespace }}"
+  register: r_keycloak_initial_admin
+  retries: 30
+  delay: 10
+  until:
+    - r_keycloak_initial_admin.resources is defined
+    - r_keycloak_initial_admin.resources | length > 0
+
+- name: Decode initial admin credentials
+  ansible.builtin.set_fact:
+    _keycloak_temp_user: "{{ r_keycloak_initial_admin.resources[0].data.username | b64decode }}"
+    _keycloak_temp_pass: "{{ r_keycloak_initial_admin.resources[0].data.password | b64decode }}"
+    _keycloak_url: "https://sso.{{ r_openshift_subdomain }}"
+
+- name: Get Keycloak admin access token
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/realms/master/protocol/openid-connect/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      client_id: admin-cli
+      username: "{{ _keycloak_temp_user }}"
+      password: "{{ _keycloak_temp_pass }}"
+      grant_type: password
+    validate_certs: false
+    status_code: 200
+  register: r_keycloak_token
+  retries: 20
+  delay: 15
+  until: r_keycloak_token.status == 200
+
+- name: Set access token fact
+  ansible.builtin.set_fact:
+    _keycloak_token: "{{ r_keycloak_token.json.access_token }}"
+
+- name: Create admin user in master realm
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/master/users"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      username: admin
+      enabled: true
+    validate_certs: false
+    status_code: [201, 409]
+
+- name: Get admin user ID
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/master/users?username=admin&exact=true"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_admin_user
+
+- name: Set admin user ID fact
+  ansible.builtin.set_fact:
+    _keycloak_admin_user_id: "{{ r_admin_user.json[0].id }}"
+
+- name: Set admin user password
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/master/users/{{ _keycloak_admin_user_id }}/reset-password"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      type: password
+      value: "{{ common_password }}"
+      temporary: false
+    validate_certs: false
+    status_code: 204
+
+- name: Get admin realm role definition
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/master/roles/admin"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_admin_role
+
+- name: Assign admin role to admin user
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/master/users/{{ _keycloak_admin_user_id }}/role-mappings/realm"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      - "{{ r_admin_role.json }}"
+    validate_certs: false
+    status_code: 204
+
+- name: Create or update 'backstage' OIDC client in sso realm
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/clients"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      clientId: backstage
+      name: backstage
+      enabled: true
+      clientAuthenticatorType: client-secret
+      secret: "{{ common_password }}"
+      redirectUris:
+        - "https://backstage-rhdh.{{ r_openshift_subdomain }}/*"
+      webOrigins:
+        - "https://backstage-rhdh.{{ r_openshift_subdomain }}"
+      standardFlowEnabled: true
+      directAccessGrantsEnabled: true
+      serviceAccountsEnabled: true
+      publicClient: false
+      protocol: openid-connect
+    validate_certs: false
+    status_code: [201, 409]
+  register: r_backstage_client
+
+- name: Update 'backstage' client secret if already existed
+  when: r_backstage_client.status == 409
+  block:
+    - name: Get backstage client ID
+      ansible.builtin.uri:
+        url: "{{ _keycloak_url }}/admin/realms/sso/clients?clientId=backstage"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_token }}"
+        validate_certs: false
+        status_code: 200
+      register: r_backstage_existing
+
+    - name: Reset backstage client secret
+      ansible.builtin.uri:
+        url: "{{ _keycloak_url }}/admin/realms/sso/clients/{{ r_backstage_existing.json[0].id }}/client-secret"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ _keycloak_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          type: secret
+          value: "{{ common_password }}"
+        validate_certs: false
+        status_code: 200
+
+- name: Create or update 'backstage-plugin' OIDC client in sso realm
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/clients"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      clientId: backstage-plugin
+      name: backstage-plugin
+      enabled: true
+      clientAuthenticatorType: client-secret
+      secret: "{{ common_password }}"
+      redirectUris:
+        - "https://backstage-rhdh.{{ r_openshift_subdomain }}/*"
+      webOrigins:
+        - "https://backstage-rhdh.{{ r_openshift_subdomain }}"
+      standardFlowEnabled: true
+      directAccessGrantsEnabled: true
+      serviceAccountsEnabled: true
+      publicClient: false
+      protocol: openid-connect
+    validate_certs: false
+    status_code: [201, 409]
+  register: r_backstage_plugin_client
+
+- name: Update 'backstage-plugin' client secret if already existed
+  when: r_backstage_plugin_client.status == 409
+  block:
+    - name: Get backstage-plugin client ID
+      ansible.builtin.uri:
+        url: "{{ _keycloak_url }}/admin/realms/sso/clients?clientId=backstage-plugin"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_token }}"
+        validate_certs: false
+        status_code: 200
+      register: r_backstage_plugin_existing
+
+    - name: Reset backstage-plugin client secret
+      ansible.builtin.uri:
+        url: "{{ _keycloak_url }}/admin/realms/sso/clients/{{ r_backstage_plugin_existing.json[0].id }}/client-secret"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ _keycloak_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          type: secret
+          value: "{{ common_password }}"
+        validate_certs: false
+        status_code: 200
+
+- name: Print Keycloak config summary
+  ansible.builtin.debug:
+    msg:
+      - "Keycloak: user 'admin' created in master realm with admin role at {{ _keycloak_url }}"
+      - "Keycloak: clients 'backstage' and 'backstage-plugin' configured in 'sso' realm with common_password as secret"
+  when: not silent | bool

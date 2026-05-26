@@ -1,0 +1,65 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ idp_lab_from0_showroom_application_name }}
+  namespace: {{ idp_lab_from0_showroom_application_namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io/foreground
+spec:
+  destination:
+    namespace: {{ idp_lab_from0_showroom_namespace }}
+    server: 'https://kubernetes.default.svc'
+  project: default
+  sources:
+    # Source 1: Showroom Helm chart
+    - repoURL: https://rhpds.github.io/showroom-deployer
+      chart: showroom-single-pod
+      targetRevision: "{{ idp_lab_from0_showroom_chart_version }}"
+      helm:
+        values: |
+          guid: {{ guid }}
+
+          deployer:
+            domain: {{ r_openshift_subdomain }}
+
+          content:
+            repoUrl: {{ idp_lab_from0_showroom_content_repo }}
+            repoRef: {{ idp_lab_from0_showroom_content_ref }}
+            antoraPlaybook: site.yml
+            user_data: |
+              guid: {{ guid }}
+              ssh_user: {{ idp_lab_from0_showroom_ssh_user }}
+              ssh_password: {{ common_password }}
+              openshift_cluster_ingress_domain: {{ r_openshift_subdomain }}
+              openshift_cluster_console_url: https://console-openshift-console.{{ r_openshift_subdomain }}
+              common_password: {{ common_password }}
+              helm_repo: https://gitlab-{{ idp_lab_from0_gitlab_namespace }}.{{ r_openshift_subdomain }}/idp-lab/helm.git
+              helm_repo_browse: https://gitlab-{{ idp_lab_from0_gitlab_namespace }}.{{ r_openshift_subdomain }}/idp-lab/helm
+              helm_repo_tag: main
+              environment_variables:
+                DOMAIN: {{ r_openshift_subdomain }}
+
+          wetty:
+            setup: "false"
+
+          terminal:
+            storage:
+              setup: "false"
+
+    # Source 2: Documentation content repo — tracked so ArgoCD re-syncs on push
+    - repoURL: {{ idp_lab_from0_showroom_content_repo }}
+      targetRevision: {{ idp_lab_from0_showroom_content_ref }}
+      ref: showroomcontent
+
+    # Source 3: PostSync hook — restarts Showroom pod after each sync so new content is loaded
+    - repoURL: {{ idp_lab_from0_showroom_hooks_repo }}
+      targetRevision: {{ idp_lab_from0_showroom_hooks_ref }}
+      path: {{ idp_lab_from0_showroom_hooks_path }}
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
