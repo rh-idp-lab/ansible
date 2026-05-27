@@ -1,50 +1,65 @@
 #!/bin/bash
 
-echo "Cleaning rhdh-gitops ArgoCD instance"
-oc get Application  -n rhdh-gitops -o yaml 2>/dev/null | yq '.items.[].metadata.name' | xargs -r oc -n rhdh-gitops delete Application
-oc get AppProject   -n rhdh-gitops -o yaml 2>/dev/null | yq '.items.[].metadata.name' | xargs -r oc -n rhdh-gitops delete AppProject
+ARGOCD_NS="openshift-gitops"
 
-echo
+# ArgoCD Applications to keep (noobaa manages ODF/storage, deleting it can break the cluster)
+KEEP_APPS="noobaa|keycloak"
 
-echo "Cleaning ArgoCD applications (openshift-gitops)"
-oc get Applications -n openshift-gitops \
-  | grep -e gitlab -e vault -e rhdh-gitops \
-  | awk '{print $1}' \
-  | xargs -r oc -n openshift-gitops delete Applications
+echo "=== Cleaning rhdh-gitops ArgoCD instance ==="
+oc get application -n rhdh-gitops -o name 2>/dev/null \
+  | xargs -r oc delete -n rhdh-gitops --ignore-not-found || true
+oc get appproject -n rhdh-gitops -o name 2>/dev/null \
+  | grep -v default \
+  | xargs -r oc delete -n rhdh-gitops --ignore-not-found || true
 
-echo
+echo ""
+echo "=== Cleaning ArgoCD Applications in ${ARGOCD_NS} (keeping: ${KEEP_APPS}) ==="
+oc get application -n "${ARGOCD_NS}" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null \
+  | tr ' ' '\n' \
+  | grep -v -E "^(${KEEP_APPS// /|})$" \
+  | xargs -r oc delete application -n "${ARGOCD_NS}" --ignore-not-found || true
 
-echo "Cleaning namespaces"
-oc get project \
-  | grep -e gitlab -e vault -e rhdh-gitops \
-  | awk '{print $1}' \
-  | xargs -r oc delete project
+echo ""
+echo "=== Cleaning namespaces ==="
+NAMESPACES=(
+  gitlab
+  vault
+  rhdh-gitops
+  rhdh
+  openshift-devspaces
+  trusted-artifact-signer
+  showroom
+  openshift-pipelines
+  quay-registry
+  external-secrets
+)
 
-echo
+for ns in "${NAMESPACES[@]}"; do
+  if oc get project "${ns}" &>/dev/null; then
+    echo "  Deleting namespace: ${ns}"
+    oc delete project "${ns}" --ignore-not-found &
+  fi
+done
 
-echo "Cleaning Dev Spaces workspaces"
-oc get project -o json 2>/dev/null \
-  | jq -r '.items.[].metadata.name' \
-  | grep devspaces \
+echo ""
+echo "=== Waiting for namespace deletions to complete ==="
+wait || true
+
+echo ""
+echo "=== Cleaning Dev Spaces user workspaces ==="
+oc get project -o jsonpath='{.items[*].metadata.name}' 2>/dev/null \
+  | tr ' ' '\n' \
+  | grep 'devspaces-' \
   | grep -v openshift-devspaces \
-  | while read ns; do
-      oc delete project "$ns"
-    done
+  | xargs -r oc delete project --ignore-not-found || true
 
-echo
+echo ""
+echo "=== Cleaning ArgoCD repo credentials for GitLab ==="
+oc delete secret argocd-repo-gitlab-helm -n "${ARGOCD_NS}" --ignore-not-found 2>/dev/null || true
 
-echo "Cleaning GitLab OAuth secret"
-oc get secret gitlab-oauth-config -n openshift-devspaces >/dev/null 2>&1 \
-  && oc delete secret gitlab-oauth-config -n openshift-devspaces
+echo ""
+echo "=== Cleaning Showroom ClusterRoleBinding ==="
+oc delete clusterrolebinding showroom-showroom-cluster-admin --ignore-not-found 2>/dev/null || true
 
-echo
-
-# echo "Cleaning lab users"
-# oc get users -o json 2>/dev/null \
-#   | jq -r '.items.[].metadata.name' \
-#   | grep -v admin \
-#   | while read user; do
-#       oc delete user "$user"
-#     done
-
+echo ""
 echo "Done."
