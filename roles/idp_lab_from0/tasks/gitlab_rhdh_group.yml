@@ -1,0 +1,68 @@
+---
+# Create the 'rhdh' GitLab group and import developer-hub-config from GitHub
+# without triggering a full gitlab-reset.
+
+- name: Retrieve GitLab root private token
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Secret
+    name: root-user-personal-token
+    namespace: "{{ idp_lab_from0_gitlab_namespace }}"
+  register: r_root_token
+  retries: 10
+  delay: 10
+  until:
+    - r_root_token.resources is defined
+    - r_root_token.resources | length > 0
+    - r_root_token.resources[0].data.token is defined
+
+- name: Decode root token
+  ansible.builtin.set_fact:
+    _idp_lab_from0_gitlab_root_token: "{{ r_root_token.resources[0].data.token | b64decode }}"
+    _gitlab_host: "{{ idp_lab_from0_gitlab_config_host }}"
+
+- name: Create 'rhdh' group in GitLab (idempotent)
+  ansible.builtin.uri:
+    url: "https://{{ _gitlab_host }}/api/v4/groups"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    body_format: form-urlencoded
+    body:
+      name: rhdh
+      path: rhdh
+      visibility: public
+    validate_certs: false
+    status_code: [201, 400]
+  register: r_rhdh_group
+
+- name: Get 'rhdh' group ID
+  ansible.builtin.uri:
+    url: "https://{{ _gitlab_host }}/api/v4/groups/rhdh"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_rhdh_group_info
+
+- name: Import developer-hub-config from GitHub into rhdh group
+  ansible.builtin.uri:
+    url: "https://{{ _gitlab_host }}/api/v4/projects"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    body_format: form-urlencoded
+    body:
+      name: developer-hub-config
+      import_url: https://github.com/rh-idp-lab/developer-hub-config.git
+      visibility: public
+      namespace_id: "{{ r_rhdh_group_info.json.id }}"
+    validate_certs: false
+    status_code: [201, 400]
+  register: r_import
+
+- name: Print result
+  ansible.builtin.debug:
+    msg: "GitLab rhdh/developer-hub-config: {{ 'created' if r_import.status == 201 else 'already exists' }}"
+  when: not silent | bool

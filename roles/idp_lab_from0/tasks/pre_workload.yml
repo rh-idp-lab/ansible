@@ -30,6 +30,16 @@
   ansible.builtin.set_fact:
     r_openshift_api_server: "{{ r_api_url.resources[0].status.apiServerURL }}"
 
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - ocp_admin_password is defined
+      - ocp_admin_password | length > 0
+    fail_msg: >-
+      ocp_admin_password is required but not set.
+      Pass it via: make deploy OCP_ADMIN_PASSWORD=<password>
+      or set OCP_ADMIN_PASSWORD in your .env file.
+
 - name: Set common password
   ansible.builtin.set_fact:
     common_password: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile', chars=['ascii_letters'], length=8) }}"

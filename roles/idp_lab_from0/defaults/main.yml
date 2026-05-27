@@ -1,6 +1,7 @@
 ---
 become_override: false
 ocp_username: opentlc-mgr
+ocp_admin_password: ""
 silent: false
 guid: idp
 

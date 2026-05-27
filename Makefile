@@ -17,6 +17,9 @@ ENV_VARS :=
 ifdef COMMON_PASSWORD
   ENV_VARS += -e common_password=$(COMMON_PASSWORD)
 endif
+ifdef OCP_ADMIN_PASSWORD
+  ENV_VARS += -e ocp_admin_password=$(OCP_ADMIN_PASSWORD)
+endif
 
 .PHONY: help deploy clean gitlab-reset showroom showroom-restart keycloak-config
 
@@ -35,11 +38,15 @@ help:
 	@echo "  make showroom-restart  Force a rollout of the Showroom deployment (rebuild content)"
 	@echo "  make clean         Delete all deployed resources from the cluster"
 	@echo ""
-	@echo "Optional .env variables:"
-	@echo "  COMMON_PASSWORD    Shared password for lab users and services"
+	@echo "Optional .env or environment variables:"
+	@echo "  COMMON_PASSWORD      Shared password for lab users and services"
+	@echo "  OCP_ADMIN_PASSWORD   OpenShift admin password (displayed in Showroom)"
 	@echo ""
 
 deploy:
+ifndef OCP_ADMIN_PASSWORD
+	$(error OCP_ADMIN_PASSWORD is required. Set it in .env or run: make deploy OCP_ADMIN_PASSWORD=<password>)
+endif
 	@start=$$(date); \
 	ansible-playbook $(PLAYBOOK) $(ENV_VARS) $(EXTRA_VARS); \
 	end=$$(date); \
@@ -63,6 +70,9 @@ showroom:
 
 keycloak-config:
 	ansible-playbook $(PLAYBOOK) --tags keycloak_config $(ENV_VARS) $(EXTRA_VARS)
+
+gitlab-rhdh-group:
+	ansible-playbook $(PLAYBOOK) --tags gitlab_rhdh_group $(ENV_VARS) $(EXTRA_VARS)
 
 gitlab-reset:
 	ansible-playbook $(PLAYBOOK) --tags gitlab_reset $(ENV_VARS) $(EXTRA_VARS)
