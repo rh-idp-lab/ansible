@@ -1,4 +1,6 @@
 ---
+# Delete seeded repos and re-import them from GitHub — no ArgoCD sync needed.
+
 - name: Retrieve GitLab root private token
   kubernetes.core.k8s_info:
     api_version: v1
@@ -16,14 +18,16 @@
 - name: Decode root token
   ansible.builtin.set_fact:
     _idp_lab_from0_gitlab_root_token: "{{ r_root_token.resources[0].data.token | b64decode }}"
+    _gitlab_api: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4"
 
 - name: Get all projects in each seeded group
   ansible.builtin.uri:
-    url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/groups/{{ item }}/projects?per_page=100"
+    url: "{{ _gitlab_api }}/groups/{{ item }}/projects?per_page=100"
     method: GET
     headers:
       PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
     return_content: true
+    validate_certs: false
     status_code: [200, 404]
   loop: "{{ idp_lab_from0_gitlab_reset_groups }}"
   register: r_group_projects
@@ -31,10 +35,11 @@
 
 - name: Delete all projects in seeded groups
   ansible.builtin.uri:
-    url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/projects/{{ item.id }}"
+    url: "{{ _gitlab_api }}/projects/{{ item.id }}"
     method: DELETE
     headers:
       PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    validate_certs: false
     status_code: [202, 404]
   loop: >-
     {{
@@ -49,81 +54,40 @@
     label: "{{ item.path_with_namespace }}"
   failed_when: false
 
-- name: Patch ArgoCD Application to skip initial wait (GitLab already running)
-  kubernetes.core.k8s:
-    api_version: argoproj.io/v1alpha1
-    kind: Application
-    name: "{{ idp_lab_from0_gitlab_gitops_name }}"
-    namespace: "{{ idp_lab_from0_gitlab_gitops_namespace }}"
-    definition:
-      spec:
-        source:
-          helm:
-            parameters:
-              - name: gitlab.skipInitialWait
-                value: "true"
-    merge_type: merge
+- name: Get group IDs for seeded groups
+  ansible.builtin.uri:
+    url: "{{ _gitlab_api }}/groups/{{ item }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    validate_certs: false
+    status_code: 200
+  loop: "{{ idp_lab_from0_gitlab_reset_groups }}"
+  register: r_group_ids
 
-- name: Delete GitLab init Job so ArgoCD recreates it (without the 5-min pause)
-  kubernetes.core.k8s:
-    state: absent
-    api_version: batch/v1
-    kind: Job
-    name: initialize-gitlab
-    namespace: "{{ idp_lab_from0_gitlab_namespace }}"
-  ignore_errors: true
-
-- name: Delete GitLab templates Job so ArgoCD recreates it
-  kubernetes.core.k8s:
-    state: absent
-    api_version: batch/v1
-    kind: Job
-    name: gitlab-templates
-    namespace: "{{ idp_lab_from0_gitlab_namespace }}"
-  ignore_errors: true
-
-- name: Trigger ArgoCD sync operation
-  kubernetes.core.k8s:
-    api_version: argoproj.io/v1alpha1
-    kind: Application
-    name: "{{ idp_lab_from0_gitlab_gitops_name }}"
-    namespace: "{{ idp_lab_from0_gitlab_gitops_namespace }}"
-    definition:
-      operation:
-        initiatedBy:
-          username: ansible
-        sync:
-          syncStrategy:
-            hook: {}
-    merge_type: merge
-
-- name: Wait for ArgoCD to recreate and complete init Job
-  kubernetes.core.k8s_info:
-    api_version: batch/v1
-    kind: Job
-    name: initialize-gitlab
-    namespace: "{{ idp_lab_from0_gitlab_namespace }}"
-  register: r_init_job
-  retries: 60
+- name: Re-import repos from GitHub into seeded groups
+  ansible.builtin.uri:
+    url: "{{ _gitlab_api }}/projects"
+    method: POST
+    headers:
+      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    body_format: form-urlencoded
+    body:
+      name: "{{ item.1.name }}"
+      import_url: "{{ item.1.url }}"
+      visibility: public
+      namespace_id: "{{ (r_group_ids.results | selectattr('item', 'equalto', item.0) | first).json.id }}"
+    validate_certs: false
+    status_code: [201, 400]
+  loop: "{{ idp_lab_from0_gitlab_reset_groups | zip(idp_lab_from0_gitlab_reset_repos) | list }}"
+  loop_control:
+    label: "{{ item.0 }}/{{ item.1.name }}"
+  register: r_reimport
+  retries: 5
   delay: 10
-  until:
-    - r_init_job.resources is defined
-    - r_init_job.resources | length > 0
-    - r_init_job.resources[0].status is defined
-    - r_init_job.resources[0].status.succeeded is defined
-    - r_init_job.resources[0].status.succeeded >= 1
+  until: r_reimport.status in [201, 400]
 
-- name: Restore ArgoCD Application (remove skipInitialWait override)
-  kubernetes.core.k8s:
-    api_version: argoproj.io/v1alpha1
-    kind: Application
-    name: "{{ idp_lab_from0_gitlab_gitops_name }}"
-    namespace: "{{ idp_lab_from0_gitlab_gitops_namespace }}"
-    definition:
-      spec:
-        source:
-          helm:
-            parameters:
-              - name: gitlab.skipInitialWait
-                value: "false"
-    merge_type: merge
+- name: Print result
+  ansible.builtin.debug:
+    msg: "GitLab reset complete: {{ idp_lab_from0_gitlab_reset_groups | join(', ') }} groups re-seeded"
+  when: not silent | bool

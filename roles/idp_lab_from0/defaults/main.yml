@@ -195,6 +195,14 @@ idp_lab_from0_gitlab_namespace: gitlab
 # Groups whose projects are deleted and re-seeded by make gitlab-reset
 idp_lab_from0_gitlab_reset_groups:
   - idp-lab
+  - rhdh
+
+# Repos to re-import per group (must align with idp_lab_from0_gitlab_reset_groups order)
+idp_lab_from0_gitlab_reset_repos:
+  - name: helm
+    url: https://github.com/rh-idp-lab/helm.git
+  - name: developer-hub-config
+    url: https://github.com/rh-idp-lab/developer-hub-config.git
 
 idp_lab_from0_gitlab_gitops_repo: https://github.com/rh-idp-lab/helm.git
 idp_lab_from0_gitlab_gitops_repo_path: gitlab

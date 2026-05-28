@@ -5,7 +5,10 @@ ARGOCD_NS="openshift-gitops"
 # ArgoCD Applications to keep (noobaa manages ODF/storage, deleting it can break the cluster)
 KEEP_APPS="noobaa|keycloak"
 
-echo "=== Cleaning rhdh-gitops ArgoCD instance ==="
+echo "=== Terminating rhdh-gitops ArgoCD applications (removing finalizers) ==="
+oc get application -n rhdh-gitops -o name 2>/dev/null \
+  | xargs -r -I{} oc patch {} -n rhdh-gitops \
+      --type=merge -p '{"metadata":{"finalizers":[]}}' 2>/dev/null || true
 oc get application -n rhdh-gitops -o name 2>/dev/null \
   | xargs -r oc delete -n rhdh-gitops --ignore-not-found || true
 oc get appproject -n rhdh-gitops -o name 2>/dev/null \
@@ -13,7 +16,12 @@ oc get appproject -n rhdh-gitops -o name 2>/dev/null \
   | xargs -r oc delete -n rhdh-gitops --ignore-not-found || true
 
 echo ""
-echo "=== Cleaning ArgoCD Applications in ${ARGOCD_NS} (keeping: ${KEEP_APPS}) ==="
+echo "=== Terminating ArgoCD Applications in ${ARGOCD_NS} (removing finalizers, keeping: ${KEEP_APPS}) ==="
+oc get application -n "${ARGOCD_NS}" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null \
+  | tr ' ' '\n' \
+  | grep -v -E "^(${KEEP_APPS// /|})$" \
+  | xargs -r -I{} oc patch application/{} -n "${ARGOCD_NS}" \
+      --type=merge -p '{"metadata":{"finalizers":[]}}' 2>/dev/null || true
 oc get application -n "${ARGOCD_NS}" -o jsonpath='{.items[*].metadata.name}' 2>/dev/null \
   | tr ' ' '\n' \
   | grep -v -E "^(${KEEP_APPS// /|})$" \
@@ -29,7 +37,6 @@ NAMESPACES=(
   openshift-devspaces
   trusted-artifact-signer
   showroom
-  openshift-pipelines
   quay-registry
   external-secrets
 )
@@ -37,7 +44,7 @@ NAMESPACES=(
 for ns in "${NAMESPACES[@]}"; do
   if oc get project "${ns}" &>/dev/null; then
     echo "  Deleting namespace: ${ns}"
-    oc delete project "${ns}" --ignore-not-found &
+    oc delete project "${ns}" --ignore-not-found --wait=false &
   fi
 done
 

@@ -36,5 +36,17 @@
   ansible.builtin.set_fact:
     _idp_lab_from0_gitlab_root_token: "{{ r_root_token.resources[0].data.token | b64decode }}"
 
+- name: Wait for GitLab API to be fully ready
+  ansible.builtin.uri:
+    url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/groups"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    validate_certs: false
+  register: r_gitlab_api_ready
+  retries: 60
+  delay: 10
+  until: r_gitlab_api_ready.status == 200
+
 # OAuth applications (e.g. Dev Spaces) are created manually by lab participants
 # as part of the workshop exercises — no automated creation here.

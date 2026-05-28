@@ -74,7 +74,7 @@ keycloak-config:
 gitlab-rhdh-group:
 	ansible-playbook $(PLAYBOOK) --tags gitlab_rhdh_group $(ENV_VARS) $(EXTRA_VARS)
 
-gitlab-reset:
+gitlab-reset-repos:
 	ansible-playbook $(PLAYBOOK) --tags gitlab_reset $(ENV_VARS) $(EXTRA_VARS)
 
 showroom-restart:
