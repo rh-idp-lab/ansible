@@ -136,7 +136,7 @@
     status_code: [201, 409]
   register: r_backstage_client
 
-- name: Update 'backstage' client secret if already existed
+- name: Update 'backstage' client settings if already existed
   when: r_backstage_client.status == 409
   block:
     - name: Get backstage client ID
@@ -148,6 +148,31 @@
         validate_certs: false
         status_code: 200
       register: r_backstage_existing
+
+    - name: Update backstage client settings (ensure serviceAccountsEnabled)
+      ansible.builtin.uri:
+        url: "{{ _keycloak_url }}/admin/realms/sso/clients/{{ r_backstage_existing.json[0].id }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _keycloak_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          clientId: backstage
+          name: backstage
+          enabled: true
+          clientAuthenticatorType: client-secret
+          redirectUris:
+            - "https://backstage-rhdh.{{ r_openshift_subdomain }}/*"
+          webOrigins:
+            - "https://backstage-rhdh.{{ r_openshift_subdomain }}"
+          standardFlowEnabled: true
+          directAccessGrantsEnabled: true
+          serviceAccountsEnabled: true
+          publicClient: false
+          protocol: openid-connect
+        validate_certs: false
+        status_code: 204
 
     - name: Reset backstage client secret
       ansible.builtin.uri:
@@ -190,7 +215,7 @@
     status_code: [201, 409]
   register: r_backstage_plugin_client
 
-- name: Update 'backstage-plugin' client secret if already existed
+- name: Update 'backstage-plugin' client settings if already existed
   when: r_backstage_plugin_client.status == 409
   block:
     - name: Get backstage-plugin client ID
@@ -202,6 +227,31 @@
         validate_certs: false
         status_code: 200
       register: r_backstage_plugin_existing
+
+    - name: Update backstage-plugin client settings (ensure serviceAccountsEnabled)
+      ansible.builtin.uri:
+        url: "{{ _keycloak_url }}/admin/realms/sso/clients/{{ r_backstage_plugin_existing.json[0].id }}"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _keycloak_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          clientId: backstage-plugin
+          name: backstage-plugin
+          enabled: true
+          clientAuthenticatorType: client-secret
+          redirectUris:
+            - "https://backstage-rhdh.{{ r_openshift_subdomain }}/*"
+          webOrigins:
+            - "https://backstage-rhdh.{{ r_openshift_subdomain }}"
+          standardFlowEnabled: true
+          directAccessGrantsEnabled: true
+          serviceAccountsEnabled: true
+          publicClient: false
+          protocol: openid-connect
+        validate_certs: false
+        status_code: 204
 
     - name: Reset backstage-plugin client secret
       ansible.builtin.uri:
@@ -217,9 +267,79 @@
         validate_certs: false
         status_code: 200
 
+- name: Get backstage client UUID (for service account role assignment)
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/clients?clientId=backstage"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_backstage_client_lookup
+
+- name: Set backstage client UUID fact
+  ansible.builtin.set_fact:
+    _backstage_client_uuid: "{{ r_backstage_client_lookup.json[0].id }}"
+
+- name: Get backstage service account user
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/clients/{{ _backstage_client_uuid }}/service-account-user"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_backstage_sa_user
+
+- name: Get realm-management client UUID
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/clients?clientId=realm-management"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_realm_management_client
+
+- name: Set realm-management UUID fact
+  ansible.builtin.set_fact:
+    _realm_management_uuid: "{{ r_realm_management_client.json[0].id }}"
+
+- name: Get realm-management available roles
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/clients/{{ _realm_management_uuid }}/roles"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_realm_management_roles
+
+- name: Filter catalog sync roles (view/query users and groups)
+  ansible.builtin.set_fact:
+    _catalog_sync_roles: >-
+      {{
+        r_realm_management_roles.json
+        | selectattr('name', 'in', ['view-users', 'query-users', 'view-groups', 'query-groups'])
+        | list
+      }}
+
+- name: Assign realm-management roles to backstage service account
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/users/{{ r_backstage_sa_user.json.id }}/role-mappings/clients/{{ _realm_management_uuid }}"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body: "{{ _catalog_sync_roles }}"
+    validate_certs: false
+    status_code: 204
+
 - name: Print Keycloak config summary
   ansible.builtin.debug:
     msg:
       - "Keycloak: user 'admin' created in master realm with admin role at {{ _keycloak_url }}"
       - "Keycloak: clients 'backstage' and 'backstage-plugin' configured in 'sso' realm with common_password as secret"
+      - "Keycloak: backstage service account assigned view-users, query-users, view-groups, query-groups from realm-management"
   when: not silent | bool
