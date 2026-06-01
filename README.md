@@ -13,7 +13,7 @@ All subsequent platform components (Pipelines, Keycloak, RHDH, etc.) are expecte
 
 ## Prerequisites
 
-- An OpenShift 4.14+ cluster
+- An OpenShift 4.20+ cluster
 - `oc` CLI logged in as a `cluster-admin` user
 - `make` installed
 - Ansible 2.14+ with the `kubernetes.core` collection:
@@ -62,7 +62,7 @@ Run all commands from the **repo root** (`ansible/`) so that `ansible.cfg` is pi
 ### Deploy everything
 
 ```bash
-make deploy
+make deploy OCP_ADMIN_PASSWORD=<your_admin_password>
 ```
 
 This runs the full role in order: GitOps → GitLab → NooBaa → Vault.
