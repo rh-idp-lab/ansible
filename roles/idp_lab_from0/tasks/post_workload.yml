@@ -1,5 +1,16 @@
 ---
+- name: Get Showroom route
+  kubernetes.core.k8s_info:
+    api_version: route.openshift.io/v1
+    kind: Route
+    namespace: "{{ idp_lab_from0_showroom_namespace }}"
+  register: r_post_showroom_route
+
 - name: Post-workload tasks complete
   ansible.builtin.debug:
-    msg: "Post-Workload tasks completed successfully."
-  when: not silent | bool
+    msg:
+      - "Post-Workload tasks completed successfully."
+      - "Showroom URL: https://{{ r_post_showroom_route.resources[0].spec.host }}"
+  when:
+    - not silent | bool
+    - r_post_showroom_route.resources | length > 0
