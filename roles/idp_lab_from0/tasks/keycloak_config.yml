@@ -336,10 +336,68 @@
     validate_certs: false
     status_code: 204
 
+- name: Create lab users in sso realm
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/users"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      username: "{{ item }}"
+      enabled: true
+      email: "{{ item }}@rhdemo.com"
+      emailVerified: true
+      credentials:
+        - type: password
+          value: "{{ common_password }}"
+          temporary: false
+    validate_certs: false
+    status_code: [201, 409]
+  loop:
+    - user1
+    - user2
+    - user3
+
+- name: Reset lab user passwords (if users already existed)
+  block:
+    - name: Get user ID
+      ansible.builtin.uri:
+        url: "{{ _keycloak_url }}/admin/realms/sso/users?username={{ item }}&exact=true"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ _keycloak_token }}"
+        validate_certs: false
+        status_code: 200
+      register: r_sso_user
+      loop:
+        - user1
+        - user2
+        - user3
+
+    - name: Set password for each user
+      ansible.builtin.uri:
+        url: "{{ _keycloak_url }}/admin/realms/sso/users/{{ item.json[0].id }}/reset-password"
+        method: PUT
+        headers:
+          Authorization: "Bearer {{ _keycloak_token }}"
+          Content-Type: application/json
+        body_format: json
+        body:
+          type: password
+          value: "{{ common_password }}"
+          temporary: false
+        validate_certs: false
+        status_code: 204
+      loop: "{{ r_sso_user.results }}"
+      when: item.json | length > 0
+
 - name: Print Keycloak config summary
   ansible.builtin.debug:
     msg:
       - "Keycloak: user 'admin' created in master realm with admin role at {{ _keycloak_url }}"
       - "Keycloak: clients 'backstage' and 'backstage-plugin' configured in 'sso' realm with common_password as secret"
       - "Keycloak: backstage service account assigned view-users, query-users, view-groups, query-groups from realm-management"
+      - "Keycloak: users user1/user2/user3 created in sso realm with common_password"
   when: not silent | bool
