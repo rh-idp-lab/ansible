@@ -192,17 +192,18 @@ idp_lab_from0_keycloak_namespace: keycloak
 
 idp_lab_from0_gitlab_namespace: gitlab
 
-# Groups whose projects are deleted and re-seeded by make gitlab-reset
-idp_lab_from0_gitlab_reset_groups:
-  - idp-lab
-  - rhdh
-
-# Repos to re-import per group (must align with idp_lab_from0_gitlab_reset_groups order)
+# Repos to delete and re-import from GitHub during make gitlab-reset
+# Each entry specifies the target GitLab group and the GitHub source
 idp_lab_from0_gitlab_reset_repos:
   - name: helm
     url: https://github.com/rh-idp-lab/helm.git
+    group: idp-lab
   - name: developer-hub-config
     url: https://github.com/rh-idp-lab/developer-hub-config.git
+    group: rhdh
+  - name: rhdh-templates
+    url: https://github.com/rh-idp-lab/rhdh-templates.git
+    group: rhdh
 
 idp_lab_from0_gitlab_gitops_repo: https://github.com/rh-idp-lab/helm.git
 idp_lab_from0_gitlab_gitops_repo_path: gitlab

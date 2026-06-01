@@ -58,7 +58,7 @@
     status_code: 200
   register: r_rhdh_group_info
 
-- name: Import developer-hub-config from GitHub into rhdh group
+- name: Import rhdh repos from GitHub into rhdh group
   ansible.builtin.uri:
     url: "https://{{ _gitlab_host }}/api/v4/projects"
     method: POST
@@ -66,15 +66,21 @@
       PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
     body_format: form-urlencoded
     body:
-      name: developer-hub-config
-      import_url: https://github.com/rh-idp-lab/developer-hub-config.git
+      name: "{{ item.name }}"
+      import_url: "{{ item.url }}"
       visibility: public
       namespace_id: "{{ r_rhdh_group_info.json.id }}"
     validate_certs: false
     status_code: [201, 400]
+  loop: "{{ idp_lab_from0_gitlab_reset_repos | selectattr('group', 'equalto', 'rhdh') | list }}"
+  loop_control:
+    label: "rhdh/{{ item.name }}"
   register: r_import
 
 - name: Print result
   ansible.builtin.debug:
-    msg: "GitLab rhdh/developer-hub-config: {{ 'created' if r_import.status == 201 else 'already exists' }}"
+    msg: "GitLab rhdh/{{ item.item.name }}: {{ 'created' if item.status == 201 else 'already exists' }}"
+  loop: "{{ r_import.results }}"
+  loop_control:
+    label: "rhdh/{{ item.item.name }}"
   when: not silent | bool

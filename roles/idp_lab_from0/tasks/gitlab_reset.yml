@@ -20,6 +20,10 @@
     _idp_lab_from0_gitlab_root_token: "{{ r_root_token.resources[0].data.token | b64decode }}"
     _gitlab_api: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4"
 
+- name: Collect unique groups from reset repos
+  ansible.builtin.set_fact:
+    _gitlab_reset_groups: "{{ idp_lab_from0_gitlab_reset_repos | map(attribute='group') | unique | list }}"
+
 - name: Get all projects in each seeded group
   ansible.builtin.uri:
     url: "{{ _gitlab_api }}/groups/{{ item }}/projects?per_page=100"
@@ -29,7 +33,7 @@
     return_content: true
     validate_certs: false
     status_code: [200, 404]
-  loop: "{{ idp_lab_from0_gitlab_reset_groups }}"
+  loop: "{{ _gitlab_reset_groups }}"
   register: r_group_projects
   failed_when: false
 
@@ -62,10 +66,10 @@
       PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
     validate_certs: false
     status_code: 200
-  loop: "{{ idp_lab_from0_gitlab_reset_groups }}"
+  loop: "{{ _gitlab_reset_groups }}"
   register: r_group_ids
 
-- name: Re-import repos from GitHub into seeded groups
+- name: Re-import repos from GitHub into their GitLab groups
   ansible.builtin.uri:
     url: "{{ _gitlab_api }}/projects"
     method: POST
@@ -73,15 +77,15 @@
       PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
     body_format: form-urlencoded
     body:
-      name: "{{ item.1.name }}"
-      import_url: "{{ item.1.url }}"
+      name: "{{ item.name }}"
+      import_url: "{{ item.url }}"
       visibility: public
-      namespace_id: "{{ (r_group_ids.results | selectattr('item', 'equalto', item.0) | first).json.id }}"
+      namespace_id: "{{ (r_group_ids.results | selectattr('item', 'equalto', item.group) | first).json.id }}"
     validate_certs: false
     status_code: [201, 400]
-  loop: "{{ idp_lab_from0_gitlab_reset_groups | zip(idp_lab_from0_gitlab_reset_repos) | list }}"
+  loop: "{{ idp_lab_from0_gitlab_reset_repos }}"
   loop_control:
-    label: "{{ item.0 }}/{{ item.1.name }}"
+    label: "{{ item.group }}/{{ item.name }}"
   register: r_reimport
   retries: 5
   delay: 10
@@ -89,5 +93,5 @@
 
 - name: Print result
   ansible.builtin.debug:
-    msg: "GitLab reset complete: {{ idp_lab_from0_gitlab_reset_groups | join(', ') }} groups re-seeded"
+    msg: "GitLab reset complete: {{ _gitlab_reset_groups | join(', ') }} groups re-seeded"
   when: not silent | bool
