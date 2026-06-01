@@ -1,0 +1,7 @@
+ansible:
+  repository:
+    url: "https://github.com/rh-idp-lab/ansible"
+    path: "playbooks"
+  playbook: "idp_lab_from0.yml"
+  extraVars:
+    showroom_git_repo: "https://github.com/rh-idp-lab/showroom.git"
