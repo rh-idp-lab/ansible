@@ -6,11 +6,60 @@
     namespace: "{{ idp_lab_from0_showroom_namespace }}"
   register: r_post_showroom_route
 
+- name: Get GitLab route
+  kubernetes.core.k8s_info:
+    api_version: route.openshift.io/v1
+    kind: Route
+    namespace: "{{ idp_lab_from0_gitlab_namespace }}"
+    label_selectors:
+      - app=webservice
+  register: r_post_gitlab_route
+
+- name: Set Showroom and GitLab URLs
+  ansible.builtin.set_fact:
+    _showroom_url: "https://{{ r_post_showroom_route.resources[0].spec.host }}"
+    _gitlab_url: "https://{{ r_post_gitlab_route.resources[0].spec.host }}"
+  when:
+    - r_post_showroom_route.resources | length > 0
+    - r_post_gitlab_route.resources | length > 0
+
+- name: Create userinfo ConfigMap
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: idp-lab-userinfo
+        namespace: "{{ idp_lab_from0_showroom_namespace }}"
+        labels:
+          demo.redhat.com/userinfo: ""
+          demo.redhat.com/application: "idp-lab"
+      data:
+        lab_title: "Red Hat Internal Developer Platform Lab"
+        access_instructions: |
+          Access the Showroom lab guide at {{ _showroom_url }}
+          GitLab is available at {{ _gitlab_url }}
+        deployment_type: "ansible"
+        showroom_url: "{{ _showroom_url }}"
+        gitlab_url: "{{ _gitlab_url }}"
+        common_password: "{{ common_password }}"
+        cluster_domain: "{{ r_openshift_subdomain }}"
+        cluster_api_url: "{{ cluster_api_url | default('') }}"
+        gitlab_root_password: "{{ idp_lab_from0_gitlab_config_root_password }}"
+        gitlab_users_password: "{{ idp_lab_from0_gitlab_users_password }}"
+  when:
+    - r_post_showroom_route.resources | length > 0
+    - r_post_gitlab_route.resources | length > 0
+
 - name: Post-workload tasks complete
   ansible.builtin.debug:
     msg:
       - "Post-Workload tasks completed successfully."
-      - "Showroom URL: https://{{ r_post_showroom_route.resources[0].spec.host }}"
+      - "Showroom URL: {{ _showroom_url }}"
+      - "GitLab URL: {{ _gitlab_url }}"
+      - "Common Password: {{ common_password }}"
   when:
     - not silent | bool
     - r_post_showroom_route.resources | length > 0
+    - r_post_gitlab_route.resources | length > 0

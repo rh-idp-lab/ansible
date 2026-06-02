@@ -56,8 +56,6 @@ ansible:
     rhdh_enabled: true
     rhdh_namespace: developer-hub
 
-    showroom_git_repo: "https://github.com/rh-idp-lab/showroom.git"
-
 # Container configuration
 image:
   repository: registry.redhat.io/ubi8/python-39
