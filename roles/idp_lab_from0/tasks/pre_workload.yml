@@ -30,11 +30,6 @@
   ansible.builtin.set_fact:
     r_openshift_api_server: "{{ r_api_url.resources[0].status.apiServerURL }}"
 
-- name: Default ocp_admin_password if not provided
-  ansible.builtin.set_fact:
-    ocp_admin_password: "XXXXX"
-  when: ocp_admin_password is not defined or ocp_admin_password | length == 0
-
 - name: Set common password
   ansible.builtin.set_fact:
     common_password: "{{ lookup('ansible.builtin.password', '/tmp/passwordfile', chars=['ascii_letters'], length=8) }}"

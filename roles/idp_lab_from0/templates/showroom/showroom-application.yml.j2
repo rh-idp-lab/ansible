@@ -34,7 +34,6 @@ spec:
               openshift_cluster_ingress_domain: {{ r_openshift_subdomain }}
               openshift_cluster_console_url: https://console-openshift-console.{{ r_openshift_subdomain }}
               common_password: {{ common_password }}
-              ocp_admin_password: {{ ocp_admin_password }}
               helm_repo: https://gitlab-{{ idp_lab_from0_gitlab_namespace }}.{{ r_openshift_subdomain }}/idp-lab/helm.git
               helm_repo_browse: https://gitlab-{{ idp_lab_from0_gitlab_namespace }}.{{ r_openshift_subdomain }}/idp-lab/helm
               helm_repo_tag: main

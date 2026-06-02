@@ -17,9 +17,6 @@ ENV_VARS :=
 ifdef COMMON_PASSWORD
   ENV_VARS += -e common_password=$(COMMON_PASSWORD)
 endif
-ifdef OCP_ADMIN_PASSWORD
-  ENV_VARS += -e ocp_admin_password=$(OCP_ADMIN_PASSWORD)
-endif
 
 .PHONY: help deploy clean gitlab-reset showroom showroom-restart keycloak-config
 
@@ -40,13 +37,9 @@ help:
 	@echo ""
 	@echo "Optional .env or environment variables:"
 	@echo "  COMMON_PASSWORD      Shared password for lab users and services"
-	@echo "  OCP_ADMIN_PASSWORD   OpenShift admin password (displayed in Showroom, defaults to XXXXX)"
 	@echo ""
 
 deploy:
-ifndef OCP_ADMIN_PASSWORD
-	$(eval ENV_VARS += -e ocp_admin_password=XXXXX)
-endif
 	@start=$$(date); \
 	ansible-playbook $(PLAYBOOK) $(ENV_VARS) $(EXTRA_VARS); \
 	end=$$(date); \
