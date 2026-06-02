@@ -50,3 +50,21 @@
 
 # OAuth applications (e.g. Dev Spaces) are created manually by lab participants
 # as part of the workshop exercises — no automated creation here.
+
+- name: Register GitLab helm repo in ArgoCD (with root PAT)
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: argocd-repo-gitlab-helm
+        namespace: openshift-gitops
+        labels:
+          argocd.argoproj.io/secret-type: repository
+      type: Opaque
+      stringData:
+        type: git
+        url: "https://gitlab-{{ idp_lab_from0_gitlab_namespace }}.{{ r_openshift_subdomain }}/idp-lab/helm.git"
+        username: root
+        password: "{{ _idp_lab_from0_gitlab_root_token }}"
