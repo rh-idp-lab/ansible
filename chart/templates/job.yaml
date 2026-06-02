@@ -51,11 +51,11 @@ spec:
               echo "=== Installing Python packages ==="
               pip install --no-cache-dir -r /config/requirements.txt
 
-              echo "=== Installing Helm ==="
-              curl -fsSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz | tar -xz
-              mv linux-amd64/helm /usr/local/bin/
-              chmod +x /usr/local/bin/helm
-              helm version
+              # echo "=== Installing Helm ==="
+              # curl -fsSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz | tar -xz
+              # mv linux-amd64/helm /usr/local/bin/
+              # chmod +x /usr/local/bin/helm
+              # helm version
 
               echo "=== Installing Ansible collections ==="
               mkdir -p ~/.ansible/collections
