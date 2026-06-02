@@ -71,30 +71,30 @@ spec:
               cp /config/ansible.cfg ~/.ansible/ansible.cfg
               cp /config/inventory.yaml ${WORK_DIR}/inventory.yaml
 
-              echo "=== Generating kubeconfig ==="
-              KUBE_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-              KUBE_CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              # echo "=== Generating kubeconfig ==="
+              # KUBE_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              # KUBE_CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
 
-              cat > ~/.kube/config <<EOF
-              apiVersion: v1
-              kind: Config
-              clusters:
-              - cluster:
-                  certificate-authority: ${KUBE_CA}
-                  server: ${CLUSTER_API_URL}
-                name: cluster
-              contexts:
-              - context:
-                  cluster: cluster
-                  namespace: {{ .Values.namespace.name }}
-                  user: serviceaccount
-                name: default
-              current-context: default
-              users:
-              - name: serviceaccount
-                user:
-                  token: ${KUBE_TOKEN}
-              EOF
+              # cat > ~/.kube/config <<EOF
+              # apiVersion: v1
+              # kind: Config
+              # clusters:
+              # - cluster:
+              #     certificate-authority: ${KUBE_CA}
+              #     server: ${CLUSTER_API_URL}
+              #   name: cluster
+              # contexts:
+              # - context:
+              #     cluster: cluster
+              #     namespace: {{ .Values.namespace.name }}
+              #     user: serviceaccount
+              #   name: default
+              # current-context: default
+              # users:
+              # - name: serviceaccount
+              #   user:
+              #     token: ${KUBE_TOKEN}
+              # EOF
 
               echo "=== Cloning Git repository ==="
               git clone --branch {{ .Values.ansible.repository.branch }} \
