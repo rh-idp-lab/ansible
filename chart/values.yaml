@@ -17,10 +17,10 @@ ansible:
   repository:
     url: "https://github.com/rh-idp-lab/ansible"
     branch: "main"
-    path: "playbooks"
+    path: ""  # Empty - execute from repo root to access roles/
 
-  # Main playbook to execute
-  playbook: "idp_lab_from0.yml"
+  # Main playbook to execute (relative to repository root or path)
+  playbook: "playbooks/idp_lab_from0.yml"
 
   # Python packages to install
   requirements:
