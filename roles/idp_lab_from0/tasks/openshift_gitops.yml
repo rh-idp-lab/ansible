@@ -137,6 +137,7 @@
       metadata:
         name: cluster-admins
       users: "{{ idp_lab_from0_openshift_gitops_cluster_admins_group_users }}"
+  ignore_errors: true
 
 - name: Register GitLab helm repo in ArgoCD (with root token for authentication)
   kubernetes.core.k8s:
