@@ -48,18 +48,9 @@
   delay: 10
   until: r_gitlab_api_ready.status == 200
 
-# OAuth applications (e.g. Dev Spaces) are created manually by lab participants
-# as part of the workshop exercises — no automated creation here.
-
-- name: Ensure lab users exist in GitLab with common_password
-  ansible.builtin.include_tasks: gitlab_ensure_user.yml
-  vars:
-    gitlab_username: "{{ item }}"
-  loop:
-    - "{{ idp_lab_from0_gitlab_user1 }}"
-    - "{{ idp_lab_from0_gitlab_user2 }}"
-    - "{{ idp_lab_from0_gitlab_user3 }}"
-
+# Users (user1/user2/user3) and groups are created by the initialize-gitlab
+# Kubernetes Job (cm-gitlab-init.yaml) via the Helm chart with common_password.
+# OAuth applications (e.g. Dev Spaces) are created manually by lab participants.
 
 - name: Register GitLab helm repo in ArgoCD (with root PAT)
   kubernetes.core.k8s:
