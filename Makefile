@@ -40,12 +40,12 @@ help:
 	@echo ""
 	@echo "Optional .env or environment variables:"
 	@echo "  COMMON_PASSWORD      Shared password for lab users and services"
-	@echo "  OCP_ADMIN_PASSWORD   OpenShift admin password (displayed in Showroom)"
+	@echo "  OCP_ADMIN_PASSWORD   OpenShift admin password (displayed in Showroom, defaults to XXXXX)"
 	@echo ""
 
 deploy:
 ifndef OCP_ADMIN_PASSWORD
-	$(error OCP_ADMIN_PASSWORD is required. Set it in .env or run: make deploy OCP_ADMIN_PASSWORD=<password>)
+	$(eval ENV_VARS += -e ocp_admin_password=XXXXX)
 endif
 	@start=$$(date); \
 	ansible-playbook $(PLAYBOOK) $(ENV_VARS) $(EXTRA_VARS); \
