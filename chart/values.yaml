@@ -1,0 +1,134 @@
+# Red Hat IDP Lab - Ansible Deployment Configuration
+# Deploys GitOps, GitLab, NooBaa, Vault, and Developer Hub
+
+# Job configuration
+job:
+  name: idp-lab-deployer
+  ttlSecondsAfterFinished: 600
+  restartPolicy: Never
+
+# Namespace where the ansible-runner job runs
+namespace:
+  name: idp-lab-deployer
+  create: true
+
+# Git repository containing your Ansible playbooks
+ansible:
+  repository:
+    url: "https://github.com/rh-idp-lab/ansible"
+    branch: "main"
+    path: "playbooks"
+
+  # Main playbook to execute
+  playbook: "idp_lab_from0.yml"
+
+  # Python packages to install
+  requirements:
+    - ansible-core
+    - ansible-runner
+    - kubernetes
+    - openshift
+    - PyYAML
+    - requests
+    - jmespath
+
+  # Ansible collections
+  collections:
+    - kubernetes.core:==3.2.0
+    - community.general:==9.5.0
+    - community.crypto:==2.22.3
+
+  # Extra variables passed to the playbook
+  extraVars:
+    # GitLab configuration
+    gitlab_enabled: true
+    gitlab_namespace: gitlab
+
+    # NooBaa configuration
+    noobaa_enabled: true
+    noobaa_namespace: openshift-storage
+
+    # Vault configuration
+    vault_enabled: true
+    vault_namespace: vault
+
+    # Developer Hub configuration
+    rhdh_enabled: true
+    rhdh_namespace: developer-hub
+
+# Container configuration
+image:
+  repository: registry.redhat.io/ubi8/python-39
+  tag: latest
+  pullPolicy: IfNotPresent
+
+# Resource limits and requests
+resources:
+  requests:
+    cpu: "200m"
+    memory: "512Mi"
+  limits:
+    cpu: "2000m"
+    memory: "2Gi"
+
+# ServiceAccount configuration
+serviceAccount:
+  name: idp-lab-deployer
+  annotations: {}
+
+# RBAC - permissions for the playbook
+rbac:
+  create: true
+  additionalRules:
+    # Operators installation
+    - apiGroups: ["operators.coreos.com"]
+      resources: ["subscriptions", "clusterserviceversions", "installplans", "operatorgroups", "catalogsources"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+    # ArgoCD Applications
+    - apiGroups: ["argoproj.io"]
+      resources: ["applications", "appprojects"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+    # Storage
+    - apiGroups: ["storage.k8s.io"]
+      resources: ["storageclasses"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+    # NooBaa
+    - apiGroups: ["noobaa.io"]
+      resources: ["noobaas", "backingstores", "bucketclasses"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+    # OAuth and authentication
+    - apiGroups: ["oauth.openshift.io"]
+      resources: ["oauthclients"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+    # Console links
+    - apiGroups: ["console.openshift.io"]
+      resources: ["consolelinks"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# Sync wave for ArgoCD deployment order
+syncWave:
+  rbac: "1"
+  job: "2"
+
+# Values injected by field content workload
+deployer:
+  domain: ""
+  apiUrl: ""
+
+# GitOps configuration
+gitops:
+  path: ""
+  repoURL: "https://github.com/rh-idp-lab/ansible"
+  revision: "main"
+
+# LiteMaaS configuration (optional)
+litemaas:
+  enabled: false
+  apiUrl: null
+  apiKey: null
+  model: "llama-scout-17b"

@@ -1,0 +1,147 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "idp-lab.fullname" . }}
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    {{- include "idp-lab.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWave.job | quote }}
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  {{- with .Values.job.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "idp-lab.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "idp-lab.serviceAccountName" . }}
+      restartPolicy: {{ .Values.job.restartPolicy }}
+      containers:
+        - name: ansible-runner
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: CLUSTER_DOMAIN
+              value: {{ .Values.deployer.domain | quote }}
+            - name: CLUSTER_API_URL
+              value: {{ .Values.deployer.apiUrl | quote }}
+            - name: ANSIBLE_NAMESPACE
+              value: {{ .Values.namespace.name | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+
+              echo "=== Starting IDP Lab Deployment ==="
+              echo "Cluster Domain: ${CLUSTER_DOMAIN}"
+              echo "Cluster API: ${CLUSTER_API_URL}"
+
+              # Create working directory
+              WORK_DIR=/tmp/ansible
+              mkdir -p ${WORK_DIR}
+              cd ${WORK_DIR}
+
+              echo "=== Installing Python packages ==="
+              pip install --no-cache-dir -r /config/requirements.txt
+
+              echo "=== Installing Helm ==="
+              curl -fsSL https://get.helm.sh/helm-v3.14.0-linux-amd64.tar.gz | tar -xz
+              mv linux-amd64/helm /usr/local/bin/
+              chmod +x /usr/local/bin/helm
+              helm version
+
+              echo "=== Installing Ansible collections ==="
+              mkdir -p ~/.ansible/collections
+              while IFS= read -r collection; do
+                if [ -n "$collection" ]; then
+                  echo "Installing collection: $collection"
+                  ansible-galaxy collection install "$collection" --force
+                fi
+              done < /config/collections.txt
+
+              echo "=== Configuring Ansible ==="
+              mkdir -p ~/.ansible
+              cp /config/ansible.cfg ~/.ansible/ansible.cfg
+              cp /config/inventory.yaml ${WORK_DIR}/inventory.yaml
+
+              echo "=== Generating kubeconfig ==="
+              KUBE_TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              KUBE_CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+
+              cat > ~/.kube/config <<EOF
+              apiVersion: v1
+              kind: Config
+              clusters:
+              - cluster:
+                  certificate-authority: ${KUBE_CA}
+                  server: ${CLUSTER_API_URL}
+                name: cluster
+              contexts:
+              - context:
+                  cluster: cluster
+                  namespace: {{ .Values.namespace.name }}
+                  user: serviceaccount
+                name: default
+              current-context: default
+              users:
+              - name: serviceaccount
+                user:
+                  token: ${KUBE_TOKEN}
+              EOF
+
+              echo "=== Cloning Git repository ==="
+              git clone --branch {{ .Values.ansible.repository.branch }} \
+                {{ .Values.ansible.repository.url }} repo
+              cd repo
+
+              {{- if .Values.ansible.repository.path }}
+              echo "=== Navigating to playbook path ==="
+              cd {{ .Values.ansible.repository.path }}
+              {{- end }}
+
+              echo "=== Installing playbook requirements (if any) ==="
+              if [ -f requirements.yml ]; then
+                ansible-galaxy install -r requirements.yml
+              fi
+              if [ -f requirements.txt ]; then
+                pip install -r requirements.txt
+              fi
+
+              echo "=== Running Ansible playbook ==="
+              ansible-playbook \
+                -i ${WORK_DIR}/inventory.yaml \
+                {{ .Values.ansible.playbook }} \
+                -e "cluster_domain=${CLUSTER_DOMAIN}" \
+                -e "cluster_api_url=${CLUSTER_API_URL}" \
+                -e "ansible_namespace={{ .Values.namespace.name }}" \
+                {{- range $key, $value := .Values.ansible.extraVars }}
+                -e "{{ $key }}={{ $value }}" \
+                {{- end }}
+                {{- if .Values.gitops.repoURL }}
+                -e "gitops_repo_url={{ .Values.gitops.repoURL }}" \
+                -e "gitops_revision={{ .Values.gitops.revision }}" \
+                -e "gitops_path={{ .Values.gitops.path }}" \
+                {{- end }}
+                {{- if .Values.litemaas.enabled }}
+                -e "litemaas_enabled={{ .Values.litemaas.enabled }}" \
+                -e "litemaas_api_url={{ .Values.litemaas.apiUrl }}" \
+                -e "litemaas_api_key={{ .Values.litemaas.apiKey }}" \
+                -e "litemaas_model={{ .Values.litemaas.model }}" \
+                {{- end }}
+                -v
+
+              echo "=== IDP Lab Deployment Complete ==="
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "idp-lab.fullname" . }}-config

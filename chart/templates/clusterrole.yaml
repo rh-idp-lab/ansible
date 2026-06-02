@@ -1,0 +1,73 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "idp-lab.fullname" . }}
+  labels:
+    {{- include "idp-lab.labels" . | nindent 4 }}
+  annotations:
+    argocd.argoproj.io/sync-wave: {{ .Values.syncWave.rbac | quote }}
+rules:
+  # Core resources
+  - apiGroups: [""]
+    resources:
+      - configmaps
+      - secrets
+      - services
+      - serviceaccounts
+      - pods
+      - namespaces
+      - persistentvolumeclaims
+      - persistentvolumes
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Apps resources
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # RBAC resources
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - roles
+      - rolebindings
+      - clusterroles
+      - clusterrolebindings
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete", "bind", "escalate"]
+
+  # Networking
+  - apiGroups: ["networking.k8s.io"]
+    resources:
+      - ingresses
+      - networkpolicies
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # OpenShift Routes
+  - apiGroups: ["route.openshift.io"]
+    resources:
+      - routes
+      - routes/custom-host
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # OpenShift Images
+  - apiGroups: ["image.openshift.io"]
+    resources:
+      - imagestreams
+      - imagestreamtags
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  # Batch (Jobs, CronJobs)
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+  {{- with .Values.rbac.additionalRules }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}

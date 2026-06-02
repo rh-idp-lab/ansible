@@ -1,0 +1,52 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: idp-lab
+  namespace: openshift-gitops
+  labels:
+    demo.redhat.com/application: idp-lab
+spec:
+  destination:
+    namespace: openshift-gitops
+    server: 'https://kubernetes.default.svc'
+  project: default
+  source:
+    # Point vers le dossier chart/ dans le repo
+    path: chart
+    helm:
+      values: |
+        # Configuration du cluster
+        deployer:
+          apiUrl: https://api.cluster-pfbcz.dynamic2.redhatworkshops.io:6443
+          domain: apps.cluster-pfbcz.dynamic2.redhatworkshops.io
+
+        # Configuration GitOps
+        gitops:
+          path: ''
+          repoURL: https://github.com/rh-idp-lab/ansible
+          revision: main
+
+        # Configuration LiteMaaS (optionnel)
+        litemaas:
+          enabled: true
+          apiUrl: null
+          apiKey: null
+          model: llama-scout-17b
+
+        # Composants à déployer
+        ansible:
+          extraVars:
+            gitlab_enabled: true
+            noobaa_enabled: true
+            vault_enabled: true
+            rhdh_enabled: true
+
+    repoURL: 'https://github.com/rh-idp-lab/ansible'
+    targetRevision: main
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true

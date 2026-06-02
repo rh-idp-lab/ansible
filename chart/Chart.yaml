@@ -1,0 +1,10 @@
+apiVersion: v2
+name: idp-lab
+description: Red Hat IDP Lab deployment using Ansible automation
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+maintainers:
+  - name: IDP Lab Team
+    email: slallema@redhat.com
