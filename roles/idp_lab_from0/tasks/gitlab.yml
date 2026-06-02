@@ -51,6 +51,58 @@
 # OAuth applications (e.g. Dev Spaces) are created manually by lab participants
 # as part of the workshop exercises — no automated creation here.
 
+- name: List existing GitLab users
+  ansible.builtin.uri:
+    url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/users?per_page=100"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_gitlab_users
+
+- name: Ensure lab users exist in GitLab with common_password
+  vars:
+    _existing_user: "{{ r_gitlab_users.json | selectattr('username', 'equalto', item) | list }}"
+    _user_id: "{{ _existing_user[0].id | default('') }}"
+  block:
+    - name: Create GitLab user {{ item }} if not exists
+      ansible.builtin.uri:
+        url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/users"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          admin: false
+          email: "{{ item }}@rhdemo.com"
+          public_email: "{{ item }}@rhdemo.com"
+          skip_confirmation: true
+          username: "{{ item }}"
+          password: "{{ common_password }}"
+          name: "{{ item }} GitLab"
+        headers:
+          PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+        validate_certs: false
+        status_code: [201, 409]
+      when: _existing_user | length == 0
+
+    - name: Reset password of GitLab user {{ item }} to common_password
+      ansible.builtin.uri:
+        url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/users/{{ _user_id }}"
+        method: PUT
+        body_format: form-urlencoded
+        body:
+          password: "{{ common_password }}"
+          skip_reconfirmation: true
+        headers:
+          PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+        validate_certs: false
+        status_code: 200
+      when: _existing_user | length > 0
+  loop:
+    - "{{ idp_lab_from0_gitlab_user1 }}"
+    - "{{ idp_lab_from0_gitlab_user2 }}"
+    - "{{ idp_lab_from0_gitlab_user3 }}"
+
 - name: Register GitLab helm repo in ArgoCD (with root PAT)
   kubernetes.core.k8s:
     state: present
