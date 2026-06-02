@@ -1,5 +1,25 @@
 ---
+- name: Check if OpenShift GitOps is already installed
+  kubernetes.core.k8s_info:
+    api_version: argoproj.io/v1beta1
+    kind: ArgoCD
+    name: openshift-gitops
+    namespace: openshift-gitops
+  register: r_gitops_check
+  ignore_errors: true
+
+- name: Set fact gitops_already_installed
+  ansible.builtin.set_fact:
+    gitops_already_installed: >-
+      {{ r_gitops_check.resources is defined and r_gitops_check.resources | length > 0 }}
+
+- name: Skip GitOps installation (already installed)
+  ansible.builtin.debug:
+    msg: "OpenShift GitOps is already installed, skipping operator installation."
+  when: gitops_already_installed | bool
+
 - name: Install OpenShift GitOps operator
+  when: not (gitops_already_installed | bool)
   ansible.builtin.include_role:
     name: install_operator
   vars:
@@ -39,6 +59,7 @@
     var: git_sa_result
 
 - name: Wait until openshift-gitops ArgoCD instance has been created
+  when: not (gitops_already_installed | bool)
   kubernetes.core.k8s_info:
     api_version: argoproj.io/v1beta1
     kind: ArgoCD
