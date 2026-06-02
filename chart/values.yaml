@@ -87,7 +87,7 @@ rbac:
 
     # ArgoCD Applications
     - apiGroups: ["argoproj.io"]
-      resources: ["applications", "appprojects"]
+      resources: ["applications", "appprojects", "argocds"]
       verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 
     # Storage
