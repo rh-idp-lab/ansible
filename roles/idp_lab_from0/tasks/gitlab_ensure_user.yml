@@ -1,7 +1,16 @@
 ---
 - name: Check if GitLab user {{ gitlab_username }} already exists
-  ansible.builtin.set_fact:
-    _existing_user: "{{ r_gitlab_users.json | selectattr('username', 'equalto', gitlab_username) | list }}"
+  ansible.builtin.uri:
+    url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/users?username={{ gitlab_username }}"
+    method: GET
+    headers:
+      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_check_user
+  retries: 3
+  delay: 2
+  until: r_check_user.status == 200
 
 - name: Create GitLab user {{ gitlab_username }} if not exists
   ansible.builtin.uri:
@@ -19,19 +28,7 @@
     headers:
       PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
     validate_certs: false
-    status_code: [201, 409]
-  when: _existing_user | length == 0
-
-- name: Reset password of GitLab user {{ gitlab_username }} to common_password
-  ansible.builtin.uri:
-    url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/users/{{ _existing_user[0].id }}"
-    method: PUT
-    body_format: form-urlencoded
-    body:
-      password: "{{ common_password }}"
-      skip_reconfirmation: true
-    headers:
-      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
-    validate_certs: false
-    status_code: 200
-  when: _existing_user | length > 0
+    status_code: [201, 422]
+  retries: 3
+  delay: 2
+  when: r_check_user.json | length == 0

@@ -51,16 +51,6 @@
 # OAuth applications (e.g. Dev Spaces) are created manually by lab participants
 # as part of the workshop exercises — no automated creation here.
 
-- name: List existing GitLab users
-  ansible.builtin.uri:
-    url: "https://{{ idp_lab_from0_gitlab_config_host }}/api/v4/users?per_page=100"
-    method: GET
-    headers:
-      PRIVATE-TOKEN: "{{ _idp_lab_from0_gitlab_root_token }}"
-    validate_certs: false
-    status_code: 200
-  register: r_gitlab_users
-
 - name: Ensure lab users exist in GitLab with common_password
   ansible.builtin.include_tasks: gitlab_ensure_user.yml
   vars:
