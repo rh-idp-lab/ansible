@@ -19,10 +19,6 @@
   ansible.builtin.import_tasks: keycloak_config.yml
   tags: keycloak_config
 
-- name: Create GitLab rhdh group and import developer-hub-config
-  ansible.builtin.import_tasks: gitlab_rhdh_group.yml
-  tags: gitlab_rhdh_group
-
 - name: Install Showroom
   ansible.builtin.import_tasks: showroom.yml
   tags: install_showroom

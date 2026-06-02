@@ -33,6 +33,12 @@ spec:
                 - id: {{ idp_lab_from0_gitlab_user1 }}
                 - id: {{ idp_lab_from0_gitlab_user2 }}
                 - id: {{ idp_lab_from0_gitlab_user3 }}
+            - name: rhdh
+              repo:
+                - name: developer-hub-config
+                  url: https://github.com/rh-idp-lab/developer-hub-config.git
+                - name: rhdh-templates
+                  url: https://github.com/rh-idp-lab/rhdh-templates.git
 
       parameters:
         - name: gitlab.smtp.host
