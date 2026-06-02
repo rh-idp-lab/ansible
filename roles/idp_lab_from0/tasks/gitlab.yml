@@ -103,6 +103,7 @@
     - "{{ idp_lab_from0_gitlab_user2 }}"
     - "{{ idp_lab_from0_gitlab_user3 }}"
 
+
 - name: Register GitLab helm repo in ArgoCD (with root PAT)
   kubernetes.core.k8s:
     state: present
