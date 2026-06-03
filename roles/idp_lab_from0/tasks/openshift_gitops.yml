@@ -18,6 +18,23 @@
     msg: "OpenShift GitOps is already installed, skipping operator installation."
   when: gitops_already_installed | bool
 
+- name: Patch GitOps Subscription to enable namespace management in namespace-scoped instances
+  kubernetes.core.k8s:
+    state: patched
+    api_version: operators.coreos.com/v1alpha1
+    kind: Subscription
+    name: "{{ idp_lab_from0_openshift_gitops_operator_name }}"
+    namespace: "{{ idp_lab_from0_openshift_gitops_operator_namespace }}"
+    definition:
+      spec:
+        config:
+          env:
+            - name: ALLOW_NAMESPACE_MANAGEMENT_IN_NAMESPACE_SCOPED_INSTANCES
+              value: "true"
+  retries: 5
+  delay: 10
+  ignore_errors: true
+
 - name: Install OpenShift GitOps operator
   when: not (gitops_already_installed | bool)
   ansible.builtin.include_role:
