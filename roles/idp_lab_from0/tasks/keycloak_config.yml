@@ -360,6 +360,36 @@
     - user2
     - user3
 
+- name: Create groups in sso realm
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/groups"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      name: "{{ item }}"
+    validate_certs: false
+    status_code: [201, 409]
+  loop:
+    - users
+    - admins
+
+- name: Get users group ID
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/groups?search=users&exact=true"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_users_group
+
+- name: Set users group ID fact
+  ansible.builtin.set_fact:
+    _users_group_id: "{{ r_users_group.json[0].id }}"
+
 - name: Reset lab user passwords (if users already existed)
   block:
     - name: Get user ID
@@ -393,6 +423,34 @@
       loop: "{{ r_sso_user.results }}"
       when: item.json | length > 0
 
+- name: Get lab user IDs for group assignment
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/users?username={{ item }}&exact=true"
+    method: GET
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+    validate_certs: false
+    status_code: 200
+  register: r_lab_users
+  loop:
+    - user1
+    - user2
+    - user3
+
+- name: Assign lab users to users group
+  ansible.builtin.uri:
+    url: "{{ _keycloak_url }}/admin/realms/sso/users/{{ item.json[0].id }}/groups/{{ _users_group_id }}"
+    method: PUT
+    headers:
+      Authorization: "Bearer {{ _keycloak_token }}"
+      Content-Type: application/json
+    body_format: json
+    body: {}
+    validate_certs: false
+    status_code: 204
+  loop: "{{ r_lab_users.results }}"
+  when: item.json | length > 0
+
 - name: Print Keycloak config summary
   ansible.builtin.debug:
     msg:
@@ -400,4 +458,6 @@
       - "Keycloak: clients 'backstage' and 'backstage-plugin' configured in 'sso' realm with common_password as secret"
       - "Keycloak: backstage service account assigned view-users, query-users, view-groups, query-groups from realm-management"
       - "Keycloak: users user1/user2/user3 created in sso realm with common_password"
+      - "Keycloak: groups 'users' and 'admins' created in sso realm"
+      - "Keycloak: user1/user2/user3 assigned to group 'users'"
   when: not silent | bool
