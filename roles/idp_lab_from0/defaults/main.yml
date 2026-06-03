@@ -201,8 +201,8 @@ idp_lab_from0_gitlab_reset_repos:
   - name: developer-hub-config
     url: https://github.com/rh-idp-lab/developer-hub-config.git
     group: rhdh
-  - name: rhdh-templates
-    url: https://github.com/rh-idp-lab/rhdh-templates.git
+  - name: opencodequest-templates
+    url: https://github.com/rh-idp-lab/opencodequest-templates.git
     group: rhdh
 
 idp_lab_from0_gitlab_gitops_repo: https://github.com/rh-idp-lab/helm.git
