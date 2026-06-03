@@ -3,6 +3,10 @@
   ansible.builtin.import_tasks: openshift_gitops.yml
   tags: install_gitops
 
+- name: Install Showroom
+  ansible.builtin.import_tasks: showroom.yml
+  tags: install_showroom
+
 - name: Install NooBaa
   ansible.builtin.import_tasks: noobaa.yml
   tags: install_noobaa
@@ -15,13 +19,13 @@
   ansible.builtin.import_tasks: gitlab.yml
   tags: install_gitlab
 
+- name: Create userinfo ConfigMap
+  ansible.builtin.import_tasks: create_userinfo_cm.yml
+  tags: create_userinfo_cm
+
 - name: Configure Keycloak master realm admin user
   ansible.builtin.import_tasks: keycloak_config.yml
   tags: keycloak_config
-
-- name: Install Showroom
-  ansible.builtin.import_tasks: showroom.yml
-  tags: install_showroom
 
 - name: Reset GitLab repositories
   ansible.builtin.import_tasks: gitlab_reset.yml
