@@ -1,91 +1,56 @@
-# IDP Lab Helm Chart
+# IDP Lab — Ansible Deployment
 
-Ce chart Helm déploie le Red Hat IDP Lab en utilisant Ansible automation via un Kubernetes Job.
+Deploy the Red Hat Internal Developer Platform lab using Ansible playbooks executed via a Kubernetes Job. Ansible handles tasks beyond Helm templating: waiting for operators, configuring Keycloak, seeding GitLab repositories, and calling external APIs.
 
-## Description
+## Quick Start
 
-Ce chart crée :
-- Un namespace dédié pour le job de déploiement
-- Un ServiceAccount avec les permissions ClusterRole nécessaires
-- Un ConfigMap avec la configuration Ansible
-- Un Job qui clone votre repo Git, installe les dépendances et exécute le playbook Ansible
+1. Copy this folder to your own repository
+2. Edit `values.yaml` — update the repository URL and playbook settings
+3. Edit `playbooks/idp_lab_from0.yml` — customize the deployment tasks
+4. Push to your Git repository
+5. Order the **Field Content CI** from RHDP with your repository URL
 
-Le Job déploie automatiquement :
-- OpenShift GitOps (ArgoCD)
-- GitLab
-- NooBaa (Object Storage)
-- HashiCorp Vault
-- Red Hat Developer Hub
+## Architecture
 
-## Installation
-
-### Via ArgoCD Application
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: idp-lab
-  namespace: openshift-gitops
-spec:
-  destination:
-    namespace: openshift-gitops
-    server: 'https://kubernetes.default.svc'
-  project: default
-  source:
-    path: chart
-    helm:
-      values: |
-        deployer:
-          apiUrl: https://api.cluster-xxxxx.domain.com:6443
-          domain: apps.cluster-xxxxx.domain.com
-        gitops:
-          repoURL: https://github.com/rh-idp-lab/ansible
-          revision: main
-          path: ''
-    repoURL: 'https://github.com/rh-idp-lab/ansible'
-    targetRevision: main
-  syncPolicy:
-    automated:
-      prune: false
-      selfHeal: false
-    syncOptions:
-      - CreateNamespace=true
+```
+ansible/
+├── chart/
+│   ├── Chart.yaml
+│   ├── values.yaml           # Job configuration, collections, extraVars
+│   ├── README.md
+│   └── templates/            # Job, RBAC, ConfigMap, Namespace templates
+└── playbooks/
+    ├── idp_lab_from0.yml     # Main playbook
+    └── roles/
+        └── idp_lab_from0/    # Main role with all deployment logic
+            ├── tasks/        # Modular task files per component
+            └── defaults/     # Default variable values
 ```
 
-### Via Helm CLI
+ArgoCD deploys this as a Helm chart. The chart creates a Kubernetes Job that clones the playbooks and runs Ansible.
 
-```bash
-helm install idp-lab ./chart \
-  --set deployer.apiUrl="https://api.cluster-xxxxx.domain.com:6443" \
-  --set deployer.domain="apps.cluster-xxxxx.domain.com"
-```
+## What Gets Deployed
+
+| Component | Description |
+|-----------|-------------|
+| OpenShift GitOps | Cluster-level ArgoCD instance |
+| GitLab | Source control and CI/CD platform |
+| NooBaa | S3-compatible object storage |
+| HashiCorp Vault | Secrets management |
+| Red Hat Developer Hub | Internal developer portal (Backstage) |
+| Keycloak (SSO) | Identity provider, users and groups |
+| Showroom | Lab guide with terminal |
 
 ## Configuration
 
-### Paramètres Requis
-
-| Paramètre | Description | Exemple |
-|-----------|-------------|---------|
-| `deployer.apiUrl` | URL de l'API Kubernetes | `https://api.cluster.domain.com:6443` |
-| `deployer.domain` | Domaine des routes OpenShift | `apps.cluster.domain.com` |
-
-### Paramètres Optionnels
-
-| Paramètre | Description | Défaut |
-|-----------|-------------|--------|
-| `ansible.playbook` | Playbook Ansible à exécuter | `idp_lab_from0.yml` |
-| `ansible.repository.url` | URL du repo Git | `https://github.com/rh-idp-lab/ansible` |
-| `ansible.repository.branch` | Branche Git | `main` |
-| `ansible.extraVars.*` | Variables extra pour Ansible | Voir `values.yaml` |
-| `job.ttlSecondsAfterFinished` | TTL du Job après complétion | `600` |
-| `resources.limits.cpu` | Limite CPU | `2000m` |
-| `resources.limits.memory` | Limite mémoire | `2Gi` |
-
-### Activer/Désactiver des composants
+All settings are in `values.yaml`. Key sections:
 
 ```yaml
 ansible:
+  repository:
+    url: "https://github.com/rh-idp-lab/ansible"
+    branch: "main"
+  playbook: "idp_lab_from0.yml"
   extraVars:
     gitlab_enabled: true
     noobaa_enabled: true
@@ -93,139 +58,38 @@ ansible:
     rhdh_enabled: true
 ```
 
-## Monitoring
+See comments in [values.yaml](values.yaml) for detailed documentation of all available variables.
 
-### Vérifier le Job
+## Testing Locally
 
 ```bash
-# Voir le statut du job
-kubectl get job -n idp-lab-deployer
-
-# Voir les logs du job
-kubectl logs -n idp-lab-deployer job/idp-lab
-
-# Suivre les logs en temps réel
-kubectl logs -n idp-lab-deployer job/idp-lab -f
+cd playbooks
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook idp_lab_from0.yml \
+  -e "cluster_domain=$(oc get ingresses.config.openshift.io cluster -o jsonpath='{.spec.domain}')"
 ```
 
-### Vérifier les déploiements
+## Troubleshooting
 
 ```bash
-# GitOps
-kubectl get pods -n openshift-gitops
+# Check job status
+oc get jobs -n idp-lab-deployer
 
-# GitLab
-kubectl get pods -n gitlab
+# Stream job logs
+oc logs -n idp-lab-deployer job/idp-lab -f
 
-# NooBaa
-kubectl get pods -n openshift-storage
-
-# Vault
-kubectl get pods -n vault
-
-# Developer Hub
-kubectl get pods -n developer-hub
+# View events
+oc get events -n idp-lab-deployer --sort-by='.lastTimestamp'
 ```
 
-## Dépannage
-
-### Le Job échoue
+To re-run the deployment:
 
 ```bash
-# Voir les événements
-kubectl get events -n idp-lab-deployer --sort-by='.lastTimestamp'
-
-# Voir les logs détaillés
-kubectl logs -n idp-lab-deployer job/idp-lab --all-containers=true
-
-# Décrire le job pour voir les erreurs
-kubectl describe job -n idp-lab-deployer idp-lab
-```
-
-### Permissions insuffisantes
-
-Le chart crée un ClusterRole avec les permissions nécessaires. Si vous voyez des erreurs de permissions :
-
-1. Vérifiez que le ClusterRoleBinding est créé :
-   ```bash
-   kubectl get clusterrolebinding idp-lab
-   ```
-
-2. Ajoutez des règles supplémentaires dans `values.yaml` :
-   ```yaml
-   rbac:
-     additionalRules:
-       - apiGroups: ["example.com"]
-         resources: ["customresources"]
-         verbs: ["get", "list", "create"]
-   ```
-
-### Relancer le Job
-
-Si vous devez relancer le déploiement :
-
-```bash
-# Supprimer le job existant
-kubectl delete job -n idp-lab-deployer idp-lab
-
-# Resynchroniser l'application ArgoCD
+oc delete job -n idp-lab-deployer idp-lab
 argocd app sync idp-lab
-```
-
-## Structure du Chart
-
-```
-chart/
-├── Chart.yaml              # Métadonnées du chart
-├── values.yaml             # Valeurs par défaut
-├── README.md              # Cette documentation
-└── templates/
-    ├── _helpers.tpl       # Helpers Helm
-    ├── namespace.yaml     # Namespace du job
-    ├── serviceaccount.yaml # ServiceAccount
-    ├── clusterrole.yaml   # Permissions cluster-wide
-    ├── clusterrolebinding.yaml
-    ├── configmap.yaml     # Config Ansible
-    └── job.yaml          # Job principal
-```
-
-## Personnalisation
-
-### Utiliser un playbook différent
-
-```yaml
-ansible:
-  playbook: "custom_playbook.yml"
-  repository:
-    path: "custom/path"
-```
-
-### Ajouter des collections Ansible
-
-```yaml
-ansible:
-  collections:
-    - kubernetes.core:==3.2.0
-    - community.general:==9.5.0
-    - mycollection.custom:==1.0.0
-```
-
-### Ajouter des packages Python
-
-```yaml
-ansible:
-  requirements:
-    - ansible-core
-    - kubernetes
-    - custom-package
 ```
 
 ## Support
 
-Pour des questions ou des problèmes :
 - GitHub Issues: https://github.com/rh-idp-lab/ansible/issues
-- Documentation: https://github.com/rh-idp-lab/ansible
-
-## Licence
-
-Red Hat IDP Lab - Internal Use
+- Based on: https://github.com/rhpds/field-sourced-content-template
