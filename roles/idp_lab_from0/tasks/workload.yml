@@ -19,9 +19,9 @@
   ansible.builtin.import_tasks: gitlab.yml
   tags: install_gitlab
 
-- name: Create userinfo ConfigMap
-  ansible.builtin.import_tasks: create_userinfo_cm.yml
-  tags: create_userinfo_cm
+# create_userinfo_cm.yml removed — ConfigMap is now a static Helm template
+# in chart/templates/userinfo.yaml, created at ArgoCD sync time.
+# See: https://github.com/rh-idp-lab/ansible/pull/...
 
 - name: Configure Keycloak master realm admin user
   ansible.builtin.import_tasks: keycloak_config.yml
