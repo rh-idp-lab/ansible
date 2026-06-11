@@ -22,9 +22,6 @@ spec:
     targetRevision: {{ idp_lab_from0_vault_gitops_repo_tag }}
     helm:
       values: |
-        nameOverride: {{ idp_lab_from0_vault_name }}
-        kubernetes:
-          apiserver: {{ r_openshift_api_server }}
         vault:
           auth:
             namespace: {{ idp_lab_from0_vault_auth_namespace }}

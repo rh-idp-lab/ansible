@@ -255,6 +255,5 @@ idp_lab_from0_vault_application_name: vault
 idp_lab_from0_vault_namespace: vault
 idp_lab_from0_vault_gitops_repo: https://github.com/rh-idp-lab/helm.git
 idp_lab_from0_vault_gitops_repo_tag: main
-idp_lab_from0_vault_gitops_repo_path: hashicorp-vault
-idp_lab_from0_vault_name: vault
+idp_lab_from0_vault_gitops_repo_path: hashicorp-vault-for-lab
 idp_lab_from0_vault_auth_namespace: default
