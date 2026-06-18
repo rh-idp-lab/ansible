@@ -1,0 +1,17 @@
+{{- if .Values.deployer.domain }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: idp-lab-userinfo
+  namespace: {{ .Values.namespace.name }}
+  labels:
+    demo.redhat.com/userinfo: ""
+    app.kubernetes.io/managed-by: Helm
+data:
+  lab_title: "Red Hat Internal Developer Platform Lab"
+  deployment_type: "ansible"
+  cluster_domain: {{ .Values.deployer.domain | quote }}
+  cluster_api_url: {{ .Values.deployer.apiUrl | quote }}
+  showroom_url: {{ printf "https://showroom-%s.%s" .Values.namespace.name .Values.deployer.domain | quote }}
+  gitlab_url: {{ printf "https://gitlab-gitlab.%s" .Values.deployer.domain | quote }}
+{{- end }}
